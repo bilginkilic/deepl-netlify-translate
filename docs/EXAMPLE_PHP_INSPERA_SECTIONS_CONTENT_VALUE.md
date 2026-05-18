@@ -11,6 +11,12 @@ Kayıt dizisinde her elemanda `content_value` bir **JSON string**. İçerideki i
 
 Boş string (`""`) istek yükünü azaltmak için bu örnekte **çevrilmiyor**.
 
+## Çok istek yerine tek çağrı (`text` = dizi)
+
+Netlify proxy gövdesinde `"text": [ "a", "b", "c" ]` gönderirseniz DeepL **aynı yanıtta** aynı sırada çevirileri döndürür. Tüm `sections` satırlarındaki metinleri önce tek dizide toplayıp **bir veya birkaç** istekle (aşağıda 50’lik dilimle) göndermek, satır başına ayrı HTTP çağrısından daha verimlidir.
+
+DeepL dokümantasyonunda tek istekte **en fazla 50** `text` değeri olduğu varsayılır; daha fazla segment varsa döngüde dilimleyin.
+
 ## PHP örneği
 
 ```php
@@ -166,6 +172,80 @@ function translateSectionRows(
     return $rows;
 }
 
+/**
+ * Tüm satırlardaki çevrilebilir metinleri tek seferde (veya 50’şer parça) çevirir — HTTP isteği sayısını minimize eder.
+ *
+ * @param  list<array<string,mixed>> $rows
+ * @return list<array<string,mixed>>
+ */
+function translateSectionRowsBatched(
+    array $rows,
+    string $netlifyBase,
+    string $deeplKey,
+    string $sourceLang = 'TR',
+    string $targetLang = 'EN',
+    int $maxTextsPerRequest = 50,
+): array {
+    $textKeys = ['section_toptitle', 'section_title', 'content', 'button_text'];
+
+    /** @var array<int, array<string, mixed>> decodedByRowIndex */
+    $decodedByRow = [];
+
+    foreach ($rows as $r => $row) {
+        if (!isset($row['content_value']) || !is_string($row['content_value'])) {
+            continue;
+        }
+        $decoded = json_decode($row['content_value'], true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('content_value JSON object değil, id=' . ($row['id'] ?? $r));
+        }
+        $decodedByRow[$r] = $decoded;
+    }
+
+    $batch = [];
+    /** @var list<array{r:int,k:string}> $slots */
+    $slots = [];
+
+    foreach ($decodedByRow as $r => $decoded) {
+        foreach ($textKeys as $key) {
+            if (!array_key_exists($key, $decoded)) {
+                continue;
+            }
+            $val = $decoded[$key];
+            if (!is_string($val) || $val === '') {
+                continue;
+            }
+            $batch[] = $val;
+            $slots[] = ['r' => $r, 'k' => $key];
+        }
+    }
+
+    $total = count($batch);
+    for ($offset = 0; $offset < $total; $offset += $maxTextsPerRequest) {
+        $sliceBatch = array_slice($batch, $offset, $maxTextsPerRequest);
+        $sliceSlots = array_slice($slots, $offset, $maxTextsPerRequest);
+        $translated = translateBatchNetlify(
+            $netlifyBase,
+            $deeplKey,
+            $sliceBatch,
+            $sourceLang,
+            $targetLang,
+        );
+        foreach ($sliceSlots as $i => $slot) {
+            $decodedByRow[$slot['r']][$slot['k']] = $translated[$i];
+        }
+    }
+
+    foreach ($decodedByRow as $r => $decoded) {
+        $rows[$r]['content_value'] = json_encode(
+            $decoded,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+        );
+    }
+
+    return $rows;
+}
+
 // --- Kullanım: örnek veri (veritabanı/API çıktısı ile aynı şekil) ---
 
 $netlifyBase = getenv('NETLIFY_TRANSLATE_BASE') ?: 'https://willowy-sable-701ced.netlify.app';
@@ -231,8 +311,10 @@ $rows = [
     ],
 ];
 
-$out = translateSectionRows($rows, $netlifyBase, $deeplKey, 'TR', 'EN');
+// Tek HTTP isteğinde (bu örnekte 5 metin segmenti = 1 çağrı); çok sayıda segmentte 50’lik dilimler
+$out = translateSectionRowsBatched($rows, $netlifyBase, $deeplKey, 'TR', 'EN');
 
+// Satır başına ayrı çağrı isterseniz: translateSectionRows(...)
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL;
 ```
 
@@ -240,8 +322,9 @@ echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL;
 
 1. **Blueprint farklı alanlar** kullanıyorsa `$textKeys` listesini güncelleyin; renk / link / boolean için anahtar eklemeyin.
 2. **`content` içi HTML** bir bütün olarak çevrilir; etiket isimleri korunur (`tag_handling` için bkz. [NETLIFY_TRANSLATE_API.md](./NETLIFY_TRANSLATE_API.md)).
-3. **Tek istekte çok satır:** Bu örnek satır başına bir API çağrısı yapıyor; yüzlerce satırda tüm metinleri tek dizide toplayıp tek çağrı sonra eşleme yaparak maliyeti düşürebilirsiniz (sıra ve eşleme haritası gerekir).
-4. **`JSON_UNESCAPED_SLASHES`:** Veritabanında `/` kaçışı tutarlılığı için kullanıldı; CMS beklediği formata göre bayrakları ayarlayın.
+3. **Önerilen:** `translateSectionRowsBatched` — tüm satırlardan toplanan metinler tek `text[]` isteğinde gider; 50’den fazla segment için otomatik dilimlenir. Eski `translateSectionRows` satır başına bir istek atar.
+4. **Bağlam (`context`):** Toplu `text` dizisinde her parça birbirinden bağımsız çevrilir; aynı paragraf içi tutarlılık için DeepL `context` parametresi bu örnekte kullanılmıyor — ihtiyaç varsa metinleri birleştirip veya parça başı `context` desteği proxy’ye eklenecek şekilde tasarlanmalı (şu an tek ortak `context` ile gönderiliyor).
+5. **`JSON_UNESCAPED_SLASHES`:** Veritabanında `/` kaçışı tutarlılığı için kullanıldı; CMS beklediği formata göre bayrakları ayarlayın.
 
 ## Ortam değişkenleri
 
