@@ -8,23 +8,30 @@ disable-model-invocation: true
 
 ## When this applies
 
-Follow this skill when implementing, fixing, or extending the Inspera Bodrum AI chat widget described below. Preserve **verbatim** greeting text and `quickReplies` strings unless the product owner updates them. **Model and token caps** are cost-tuned defaults (`claude-haiku-4-5`, `max_tokens` 400, etc.); October deployments use `INSPERA_CHATBOT_*` env from plugin config. The **system prompt** is defined in this skill body; reservation and signup are completed **in-chat** without URL redirects unless policy changes again.
+Follow this skill when implementing, fixing, or extending the Inspera Bodrum AI chat widget described below. For **Plugin v2 / October CMS** work, prefer the backend settings page as the source of truth for greetings, quick replies, static answers, selectable data sources, cache behavior, and action hooks; keep the hardcoded strings only as safe fallbacks. **Model and token caps** are cost-tuned defaults (`claude-haiku-4-5`, `max_tokens` 400, etc.); October deployments can override via backend settings or `INSPERA_CHATBOT_*` env from plugin config. The legacy **system prompt** is defined in this skill body as the fallback prompt; reservation and signup are completed **in-chat** without URL redirects unless policy changes again.
 
 ## Project layout
 
 ```
-inspera-chatbot/
-├── chatbot.html        # single-file HTML + CSS + JS
-└── README.md           # setup / embed instructions
+plugins/inspera/chatbot/
+├── Plugin.php
+├── Classes/            # proxy, booking API, v2 orchestration services
+├── Models/             # October SettingsModel and stored request/cache records
+├── updates/            # October migrations
+└── README.md
+
+themes/inspera-bodrum/partials/inspera-chatbot.htm
 ```
 
 ## Technical requirements
 
-- **Stack:** Vanilla JavaScript + HTML + CSS only (single file, **no frameworks**).
-- **API:** Anthropic Claude Messages API; default model **`claude-haiku-4-5`** (cost-effective). For higher quality use **`claude-sonnet-4-6`** or override via October `INSPERA_CHATBOT_MODEL`.
+- **Stack:** October CMS v3 plugin backend + vanilla JavaScript/Twig partial (**no frontend frameworks**).
+- **API:** Anthropic Claude Messages API through the server proxy; default model **`claude-haiku-4-5`** (cost-effective). For higher quality use **`claude-sonnet-4-6`** or override via October settings / `INSPERA_CHATBOT_MODEL`.
 - **Endpoint:** `https://api.anthropic.com/v1/messages`
-- **Embed:** One paste block: inline HTML + `<script>` (or equivalent single-file pattern) inserted **before** `</body>` on the Inspera site.
-- **API key:** Provided by the site owner; assign to variable **`ANTHROPIC_API_KEY`** in code (never commit real keys; document in README only as placeholder).
+- **Embed:** October theme partial inserted **before** `</body>` on the Inspera site.
+- **API key:** Provided by the site owner through backend settings or `.env`; never commit real keys.
+- **V2 cost flow:** static answer -> approved question cache -> configured site data context -> Anthropic. Save reusable AI answers to the cache table when enabled.
+- **V2 settings page:** expose greeting/menu items, static answers, data sources, cache policy, and action hooks from the October backend.
 
 ## Design requirements
 
@@ -65,7 +72,7 @@ const response = await fetch("https://api.anthropic.com/v1/messages", {
 
 ## Quick reply buttons (verbatim)
 
-After the greeting, expose clickable chips from:
+Fallback quick replies if the October settings page has no active menu items:
 
 ```javascript
 const quickReplies = [
@@ -78,7 +85,7 @@ const quickReplies = [
 
 ## Greeting message (verbatim)
 
-Show automatically when the widget opens:
+Fallback greeting if the October settings page has no custom greeting:
 
 ```
 Merhaba! Inspera Bodrum'a hoş geldiniz 🎨
@@ -183,18 +190,19 @@ Eksik alanları nazikçe tek tek sor. Topladığın bilgileri kısa bir özet bl
 
 ## Implementation checklist
 
-1. Create `chatbot.html` single-file widget.
+1. Keep the October theme partial/widget usable without frontend dependencies.
 2. CSS: launcher bottom-right; panel open/close; responsive layout.
-3. Greeting + quick-reply chips on first open.
-4. Wire Claude Messages API with headers above.
-5. Maintain `conversationHistory` array; append user/assistant turns; POST full history each time (subject to sensible limits if requested later).
+3. Greeting + quick-reply chips should read from settings/config endpoint, falling back to legacy strings.
+4. Wire browser calls to the October proxy, never directly to Anthropic in production.
+5. Maintain `conversationHistory` array; append user/assistant turns; POST trimmed history to the proxy.
 6. Typing/thinking indicator while awaiting response.
 7. Error UX: API failures and network errors — user-facing **Turkish** messages; include rate-limit messaging in Turkish when applicable.
 8. Verify mobile layout.
-9. Document replacing `ANTHROPIC_API_KEY` in README; never ship real keys in git.
-10. Document pasting embed before site `</body>`.
+9. Document setting `ANTHROPIC_API_KEY` or the backend API key; never ship real keys in git.
+10. Document adding the partial before site `</body>`.
 11. Kayıt / rezervasyon: October içinde `POST /inspera-chatbot/api/bookings` ile veritabanına yazılır; partial’daki rezervasyon formu bu endpoint’i kullanır.
 12. Maliyet: October’da `plugins/inspera/chatbot/config/chatbot.php` defaults (Haiku, tighter caps); document `INSPERA_CHATBOT_*` overrides in README.
+13. Plugin v2: static answers, selected sources, repeated question cache, and action hooks must be manageable without code edits.
 
 ## Security & ops notes
 

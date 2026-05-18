@@ -2,3 +2,6 @@ v1.0.0: Inspera Chatbot — Claude proxy route and config
 v1.0.1:
     - Booking requests table ve API uçları
     - create_booking_requests_table.php
+v2.0.0:
+    - October CMS ayar sayfası, tekrar soru cache tablosu ve action log altyapısı
+    - create_v2_chatbot_tables.php

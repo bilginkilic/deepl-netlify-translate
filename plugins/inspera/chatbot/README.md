@@ -1,6 +1,6 @@
 # Inspera.Chatbot (October CMS v3)
 
-Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API proxy’si ve temada gömülü vanilla widget.
+Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API proxy’si, October CMS yönetim ekranı, tekrar soru cache’i, seçilebilir site veri kaynakları ve temada gömülü vanilla widget.
 
 ## Kurulum
 
@@ -12,7 +12,7 @@ Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API 
    composer dump-autoload
    ```
 
-4. October yönetim panelinde **Eklentiler** bölümünde **Inspera Chatbot** (`Inspera.Chatbot`) eklentisini etkinleştirin.
+4. October yönetim panelinde **Eklentiler** bölümünde **Inspera Chatbot** (`Inspera.Chatbot`) eklentisini etkinleştirin ve güncellemeleri çalıştırın. V2 ile `inspera_chatbot_question_cache` ve `inspera_chatbot_action_logs` tabloları eklenir.
 5. Kök **`.env`** dosyasına anahtarları ekleyin (`plugins/inspera/chatbot/.env.example` içeriğine bakın):
 
    ```env
@@ -33,9 +33,28 @@ Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API 
 
 Site alt dizinde ise (`https://ornek.com/cms/` gibi) partial içindeki `data-endpoint` değerini veya `inspera-chatbot.htm` içindeki `ENDPOINT` önekini uygun taban URL ile uyumlu hale getirin.
 
+## Plugin v2 yönetim ekranı
+
+October backend’de **Ayarlar > Inspera > Inspera Chatbot** ekranından şu alanlar yönetilir:
+
+- Chatbot aktif/pasif, asistan adı, karşılama mesajı ve hızlı menü butonları
+- Anthropic API key, model, token/message sınırları ve opsiyonel sistem prompt override
+- AI’a gönderilecek seçili veri kaynakları: statik içerik, CMS sayfaları veya izin verilen veritabanı tabloları
+- Statik cevaplar: belirli sorular AI’a gitmeden cevaplanır
+- Cache politikası: AI cevapları tekrar kullanım tablosuna kaydedilebilir ve aynı soru tekrar geldiğinde AI çağrısı yapılmaz
+- Action/webhook tanımları: rezervasyon veya benzer işlemler için tetikleyici kelimeler, webhook URL, başarı/hata mesajı ve loglama
+
+Mesaj işleme sırası maliyeti azaltmak için şöyledir:
+
+1. Statik cevap eşleşmesi
+2. Onaylı tekrar soru cache’i
+3. Tanımlı action/webhook tetikleyicisi
+4. Seçili site veri kaynaklarından küçük context oluşturma
+5. Anthropic çağrısı ve uygun cevapların cache’e yazılması
+
 ## Maliyet ve model seçimi
 
-Varsayılanlar maliyeti düşürmek içindir: **`claude-haiku-4-5`**, `max_tokens` **400**, geçmiş en fazla **24** mesaj, mesaj başı **4000** karakter. Detaylı fiyat için [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+Varsayılanlar maliyeti düşürmek içindir: **`claude-haiku-4-5`**, `max_tokens` **400**, geçmiş en fazla **24** mesaj, mesaj başı **4000** karakter. Bu değerler backend ayarlarından veya env ile değiştirilebilir. Detaylı fiyat için [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing).
 
 - **Düşük maliyet:** `.env`’de boş bırakın veya `INSPERA_CHATBOT_MODEL=claude-haiku-4-5` (approx. **200k context** — bu widget için genelde yeterli).
 - **daha iyi kalite:** `INSPERA_CHATBOT_MODEL=claude-sonnet-4-6` vb.
@@ -43,12 +62,14 @@ Varsayılanlar maliyeti düşürmek içindir: **`claude-haiku-4-5`**, `max_token
 
 İsteğe bağlı iyileştirme: sistem prompt’unuz uzun olduğundan ileride [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) ile tekrarlayan sabit sistem metninde tasarruf denenebilir (proxy kodunda henüz açılmıyorsa ek bir geliştirme gerektirir).
 
-## API uç noktası
+## API uç noktaları
 
-- **URL:** `POST /inspera-chatbot/message`
+- **Config:** `GET /inspera-chatbot/config`
+  - Yanıt: karşılama mesajı, hızlı menüler, aktif/pasif durumu ve rezervasyon başlığı.
+- **Mesaj:** `POST /inspera-chatbot/message`
 - **JSON gövdesi:** `{ "messages": [ { "role": "user"|"assistant", "content": "..." }, ... ] }`
-- Yanıt: `{ "message": "assistant metni" }` veya `{ "error": "…", "code": "…" }`
-- Köçe sıkıştırma: route `web` ara katmanında; `throttle:60,1`; CSRF için `X-CSRF-TOKEN` ve cookie oturumu (same-origin fetch).
+- Yanıt: `{ "message": "assistant metni", "source": "static|cache|action|ai" }` veya `{ "error": "…", "code": "…" }`
+- Kötüye kullanımı sınırlama: route `web` ara katmanında; `throttle:60,1`; CSRF için `X-CSRF-TOKEN` ve cookie oturumu (same-origin fetch).
 
 `.env`, model ve kota için `plugins/inspera/chatbot/config/chatbot.php` dosyasına bakın (`INSPERA_CHATBOT_*`).
 
