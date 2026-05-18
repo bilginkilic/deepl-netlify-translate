@@ -6,10 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "netlify dev --port 8888",
-    "dev:debug": "NODE_OPTIONS='--inspect=9229' netlify dev --port 8888"
-  },
-  "devDependencies": {
-    "netlify-cli": "^26.0.2"
+    "dev": "npx --yes netlify-cli@26 dev --port 8888",
+    "dev:debug": "NODE_OPTIONS='--inspect=9229' npx --yes netlify-cli@26 dev --port 8888"
   }
 }
