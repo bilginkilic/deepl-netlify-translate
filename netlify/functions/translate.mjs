@@ -1,6 +1,13 @@
 const DEEPL_FREE = "https://api-free.deepl.com/v2/translate";
 const DEEPL_PRO = "https://api.deepl.com/v2/translate";
 
+/** İstemci göndermezse DeepL’e eklenen varsayılanlar (gövdede aynı anahtar varsa override edilir). */
+const DEEPL_DEFAULT_FORM = {
+  tag_handling: "html",
+  preserve_formatting: "1",
+  show_billed_characters: "1",
+};
+
 function header(event, name) {
   const want = name.toLowerCase();
   for (const [k, v] of Object.entries(event.headers ?? {})) {
@@ -58,6 +65,7 @@ function buildFormBody(payload) {
     glossary_id,
     model_type,
     tag_handling,
+    show_billed_characters,
     outline_detection,
     non_splitting_tags,
     splitting_tags,
@@ -83,7 +91,8 @@ function buildFormBody(payload) {
     params.set("source_lang", source_lang.toUpperCase());
   }
 
-  const optional = {
+  const optional = { ...DEEPL_DEFAULT_FORM };
+  const fromPayload = {
     context,
     split_sentences,
     preserve_formatting,
@@ -91,14 +100,17 @@ function buildFormBody(payload) {
     glossary_id,
     model_type,
     tag_handling,
+    show_billed_characters,
     outline_detection,
     non_splitting_tags,
     splitting_tags,
     ignore_tags,
   };
+  for (const [k, v] of Object.entries(fromPayload)) {
+    if (v !== undefined && v !== null) optional[k] = v;
+  }
   for (const [k, v] of Object.entries(optional)) {
-    if (v === undefined || v === null) continue;
-    params.set(k, String(v));
+    if (v !== undefined && v !== null) params.set(k, String(v));
   }
 
   return params.toString();
@@ -116,6 +128,8 @@ export async function handler(event) {
       auth:
         "Her istekte DeepL anahtarı: Authorization: DeepL-Auth-Key <key>, veya X-DeepL-Auth-Key, veya JSON auth_key (Netlify’da saklanmaz).",
       body: "POST JSON: { text, target_lang, source_lang?, ... } — auth_key burada da olabilir, DeepL gövdesine iletilmez.",
+      deepl_defaults:
+        "İstemci göndermese bile DeepL’e eklenir (JSON’da aynı alan verilirse override): tag_handling=html, preserve_formatting=1, show_billed_characters=1.",
     });
   }
 
