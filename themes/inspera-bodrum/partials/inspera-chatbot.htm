@@ -2,6 +2,7 @@
 <div
     id="inspera-chatbot-root"
     data-endpoint="/inspera-chatbot/message"
+    data-config-endpoint="/inspera-chatbot/config"
     data-bookings-endpoint="/inspera-chatbot/api/bookings"
     data-csrf="{{ csrf_token() }}"
 >
@@ -182,6 +183,7 @@
   if (!root) return;
 
   var ENDPOINT = root.dataset.endpoint || '/inspera-chatbot/message';
+  var CONFIG_ENDPOINT = root.dataset.configEndpoint || '/inspera-chatbot/config';
   var BOOKING_ENDPOINT = (root.dataset.bookingsEndpoint || '').trim();
   var CSRF = root.dataset.csrf || '';
   var meta = document.querySelector('meta[name="csrf-token"]');
@@ -295,10 +297,10 @@
   }
 
   var quickReplies = [
-    "Atölye bilgisi almak istiyorum",
-    "Tiyatro programı nedir?",
-    "Rezervasyon yapmak istiyorum",
-    "Voyn Kitchen menüsü nedir?"
+    { label: "Atölye bilgisi almak istiyorum", message: "Atölye bilgisi almak istiyorum" },
+    { label: "Tiyatro programı nedir?", message: "Tiyatro programı nedir?" },
+    { label: "Rezervasyon yapmak istiyorum", message: "Rezervasyon yapmak istiyorum" },
+    { label: "Voyn Kitchen menüsü nedir?", message: "Voyn Kitchen menüsü nedir?" }
   ];
 
   var greeting =
@@ -339,12 +341,15 @@
     inner.className = 'ib-bubble ib-bot';
     var chips = document.createElement('div');
     chips.className = 'ib-chips';
-    quickReplies.forEach(function (txt) {
+    quickReplies.forEach(function (item) {
+      var txt = typeof item === 'string' ? item : item.label;
+      var msg = typeof item === 'string' ? item : (item.message || item.label);
+      if (!txt || !msg) return;
       var c = document.createElement('button');
       c.type = 'button';
       c.className = 'ib-chip';
       c.textContent = txt;
-      c.addEventListener('click', function () { submitUser(txt); });
+      c.addEventListener('click', function () { submitUser(msg); });
       chips.appendChild(c);
     });
     inner.appendChild(chips);
@@ -382,6 +387,58 @@
     if (!status || status >= 500)
       return 'Bir bağlantı veya sunucu hatası oluştu. Lütfen daha sonra deneyin.';
     return 'Bir sorun oluştu. Lütfen biraz sonra tekrar deneyin.';
+  }
+
+  function applyConfig(data) {
+    if (!data || typeof data !== 'object') return;
+    if (data.enabled === false) {
+      root.style.display = 'none';
+      return;
+    }
+
+    if (typeof data.greeting === 'string' && data.greeting.trim()) {
+      greeting = data.greeting;
+    }
+
+    if (Array.isArray(data.menu_items) && data.menu_items.length) {
+      quickReplies = data.menu_items
+        .map(function (item) {
+          if (typeof item === 'string') return { label: item, message: item };
+          if (!item || typeof item !== 'object') return null;
+          return {
+            label: String(item.label || '').trim(),
+            message: String(item.message || item.label || '').trim()
+          };
+        })
+        .filter(function (item) { return item && item.label && item.message; });
+    }
+
+    if (typeof data.assistant_name === 'string' && data.assistant_name.trim()) {
+      var title = document.querySelector('#inspera-chatbot-root .ib-title');
+      if (title) title.textContent = data.assistant_name;
+    }
+
+    if (typeof data.booking_title === 'string' && data.booking_title.trim() && bookingToggle) {
+      bookingToggle.textContent = data.booking_title + ' ▸';
+    }
+
+    if (data.booking_enabled === false && bookingWrap) {
+      bookingWrap.classList.add('ib-hidden-booking');
+    }
+  }
+
+  function fetchConfig() {
+    if (!CONFIG_ENDPOINT) return;
+    var h = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
+    if (CSRF) h['X-CSRF-TOKEN'] = CSRF;
+    fetch(CONFIG_ENDPOINT, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: h
+    })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(applyConfig)
+      .catch(function () {});
   }
 
   function appendWelcome() {
@@ -465,6 +522,8 @@
         input.focus();
       });
   }
+
+  fetchConfig();
 
   launcher.addEventListener('click', function () { togglePanel(); });
   closeBtn.addEventListener('click', function () { togglePanel(false); });
