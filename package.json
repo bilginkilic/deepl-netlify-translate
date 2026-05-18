@@ -1,0 +1,15 @@
+{
+  "name": "deepl-netlify-proxy",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "netlify dev --port 8888",
+    "dev:debug": "NODE_OPTIONS='--inspect=9229' netlify dev --port 8888"
+  },
+  "devDependencies": {
+    "netlify-cli": "^26.0.2"
+  }
+}
