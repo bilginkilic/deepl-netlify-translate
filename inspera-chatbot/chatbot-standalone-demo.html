@@ -34,6 +34,7 @@
       Terminalde şu klasörde <code style="background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:4px;">python3 -m http.server 8765</code>
       çalıştırıp <strong>http://localhost:8765/chatbot-standalone-demo.html</strong> adresini kullanın.
       Anahtarı yalnızca kendi bilgisayarınızda kullanın; repo veya ekran görüntüsüne koymayın.
+      <strong>Varsayılan model:</strong> Claude Haiku 4.5 (maliyet odaklı); dosyadaki <code>MODEL</code> / <code>MAX_TOKENS</code> sabitlerini değiştirerek güncelleyebilirsiniz.
     </p>
     <div class="ib-demo-row">
       <label for="ib-api-key" style="font-size:0.8rem;width:100%;">Anthropic API anahtarı (tarayıcıya yüklenir — sadece test):</label>
@@ -254,8 +255,8 @@
     '6. Her yanıtın sonunda sohbeti ilerletecek net bir sonraki soru veya adım öner (yönlendirme bağlantısı olmadan)'
   ].join('\n');
 
-  var MODEL = 'claude-sonnet-4-20250514';
-  var MAX_TOKENS = 500;
+  var MODEL = 'claude-haiku-4-5';
+  var MAX_TOKENS = 400;
   var ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
   var apiKeyInput = document.getElementById('ib-api-key');

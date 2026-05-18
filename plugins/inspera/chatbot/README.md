@@ -33,6 +33,16 @@ Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API 
 
 Site alt dizinde ise (`https://ornek.com/cms/` gibi) partial içindeki `data-endpoint` değerini veya `inspera-chatbot.htm` içindeki `ENDPOINT` önekini uygun taban URL ile uyumlu hale getirin.
 
+## Maliyet ve model seçimi
+
+Varsayılanlar maliyeti düşürmek içindir: **`claude-haiku-4-5`**, `max_tokens` **400**, geçmiş en fazla **24** mesaj, mesaj başı **4000** karakter. Detaylı fiyat için [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+
+- **Düşük maliyet:** `.env`’de boş bırakın veya `INSPERA_CHATBOT_MODEL=claude-haiku-4-5` (approx. **200k context** — bu widget için genelde yeterli).
+- **daha iyi kalite:** `INSPERA_CHATBOT_MODEL=claude-sonnet-4-6` vb.
+- `claude-sonnet-4-20250514` **kullanmayın**; Anthropic tarafından emeklilik planlanmıştır (güncel listeleme için [models overview](https://platform.claude.com/docs/en/about-claude/models/overview)).
+
+İsteğe bağlı iyileştirme: sistem prompt’unuz uzun olduğundan ileride [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) ile tekrarlayan sabit sistem metninde tasarruf denenebilir (proxy kodunda henüz açılmıyorsa ek bir geliştirme gerektirir).
+
 ## API uç noktası
 
 - **URL:** `POST /inspera-chatbot/message`
@@ -64,6 +74,8 @@ Eklenti güncellemesi **v1.0.1** ile `inspera_chatbot_booking_requests` tablosu 
 Sağlık kontrolü: `{ "ok": true, "service": "inspera-chatbot-bookings" }`
 
 Tema partial’ında **Kayıt / rezervasyon talebi** bölümü bu endpoint’e `POST` atar (`data-bookings-endpoint`). Alt site yolunda yayın yapıyorsanız Twig’da bu data attribute’ları taban URL ile uyumlu hale getirin.
+
+## Güvenlik
 
 - **API anahtarını git’e asla commit etmeyin.**
 - Tarayıcıda anahtar yoktur; Anthropic ile konuşan tek taraf PHP proxy’dir.

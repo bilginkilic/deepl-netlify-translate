@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 ## When this applies
 
-Follow this skill when implementing, fixing, or extending the Inspera Bodrum AI chat widget described below. Preserve **verbatim** greeting text, `quickReplies` strings, model id, endpoints, and headers unless the product owner updates them. The **system prompt** is defined in this skill body; reservation and signup are completed **in-chat** without URL redirects unless policy changes again.
+Follow this skill when implementing, fixing, or extending the Inspera Bodrum AI chat widget described below. Preserve **verbatim** greeting text and `quickReplies` strings unless the product owner updates them. **Model and token caps** are cost-tuned defaults (`claude-haiku-4-5`, `max_tokens` 400, etc.); October deployments use `INSPERA_CHATBOT_*` env from plugin config. The **system prompt** is defined in this skill body; reservation and signup are completed **in-chat** without URL redirects unless policy changes again.
 
 ## Project layout
 
@@ -21,7 +21,7 @@ inspera-chatbot/
 ## Technical requirements
 
 - **Stack:** Vanilla JavaScript + HTML + CSS only (single file, **no frameworks**).
-- **API:** Anthropic Claude Messages API, model **`claude-sonnet-4-20250514`**.
+- **API:** Anthropic Claude Messages API; default model **`claude-haiku-4-5`** (cost-effective). For higher quality use **`claude-sonnet-4-6`** or override via October `INSPERA_CHATBOT_MODEL`.
 - **Endpoint:** `https://api.anthropic.com/v1/messages`
 - **Embed:** One paste block: inline HTML + `<script>` (or equivalent single-file pattern) inserted **before** `</body>` on the Inspera site.
 - **API key:** Provided by the site owner; assign to variable **`ANTHROPIC_API_KEY`** in code (never commit real keys; document in README only as placeholder).
@@ -51,8 +51,8 @@ const response = await fetch("https://api.anthropic.com/v1/messages", {
     "anthropic-dangerous-direct-browser-access": "true"
   },
   body: JSON.stringify({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 500,
+    model: "claude-haiku-4-5",
+    max_tokens: 400,
     system: SYSTEM_PROMPT,
     messages: conversationHistory
   })
@@ -60,7 +60,7 @@ const response = await fetch("https://api.anthropic.com/v1/messages", {
 ```
 
 - Keep **`conversationHistory`** as an array; send the **full** history each request (after normal trimming if the user asks for caps).
-- **`max_tokens`:** `500` unless the user changes it for short replies.
+- **`max_tokens`:** default **400** for short Turkish replies; raise if needed.
 - **Browser:** Header **`anthropic-dangerous-direct-browser-access: true`** is required for direct browser calls; warn in README about key exposure vs server-side proxy.
 
 ## Quick reply buttons (verbatim)
@@ -194,8 +194,10 @@ Eksik alanları nazikçe tek tek sor. Topladığın bilgileri kısa bir özet bl
 9. Document replacing `ANTHROPIC_API_KEY` in README; never ship real keys in git.
 10. Document pasting embed before site `</body>`.
 11. Kayıt / rezervasyon: October içinde `POST /inspera-chatbot/api/bookings` ile veritabanına yazılır; partial’daki rezervasyon formu bu endpoint’i kullanır.
+12. Maliyet: October’da `plugins/inspera/chatbot/config/chatbot.php` defaults (Haiku, tighter caps); document `INSPERA_CHATBOT_*` overrides in README.
 
 ## Security & ops notes
 
 - **Never** commit live API keys; use env or manual injection instructions.
 - Prefer README warning: browser-held keys are public—recommend backend proxy when production hardening is required.
+- October proxy is the billing surface; keep **Haiku** as default unless product requires Sonnet-tier quality.
