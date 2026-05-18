@@ -14,16 +14,15 @@ class ChatProxyController extends Controller
 {
     public function proxy(Request $request): JsonResponse
     {
-        $apiKey = trim((string) (config('inspera.chatbot.anthropic_api_key') ?: env('ANTHROPIC_API_KEY')));
-        if ($apiKey === '') {
+        if (! ChatbotSettings::bool('enabled', true)) {
             return response()->json(
-                ['error' => 'Asistan şu anda kullanılamıyor.', 'code' => 'misconfigured_server'],
+                ['error' => 'Asistan şu anda kapalı.', 'code' => 'disabled'],
                 Response::HTTP_SERVICE_UNAVAILABLE
             );
         }
 
-        $maxMessages = (int) config('inspera.chatbot.max_client_messages');
-        $maxChars = (int) config('inspera.chatbot.max_message_chars');
+        $maxMessages = max(1, ChatbotSettings::int('max_client_messages', 24));
+        $maxChars = max(1, ChatbotSettings::int('max_message_chars', 4000));
 
         $validated = $request->validate(
             [
@@ -38,6 +37,7 @@ class ChatProxyController extends Controller
 
         /** @var list<array{role: string, content: string}> $messages */
         $messages = $validated['messages'];
+        $latestUserMessage = '';
         foreach ($messages as $row) {
             if ($row['content'] === '' || ctype_space($row['content'])) {
                 return response()->json(
@@ -45,11 +45,62 @@ class ChatProxyController extends Controller
                     Response::HTTP_UNPROCESSABLE_ENTITY
                 );
             }
+
+            if ($row['role'] === 'user') {
+                $latestUserMessage = trim((string) $row['content']);
+            }
         }
 
-        $system = $this->loadSystemPrompt();
-        $model = (string) config('inspera.chatbot.model');
-        $maxTokens = (int) config('inspera.chatbot.max_tokens');
+        if ($latestUserMessage === '') {
+            return response()->json(
+                ['error' => 'En az bir kullanıcı mesajı göndermelisiniz.', 'code' => 'validation'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        $staticAnswer = (new StaticAnswerResolver())->resolve($latestUserMessage);
+        if ($staticAnswer !== null) {
+            return response()->json([
+                'message' => $staticAnswer,
+                'source' => 'static',
+            ]);
+        }
+
+        $cache = new QuestionCacheRepository();
+        $cachedAnswer = $cache->findAnswer($latestUserMessage);
+        if ($cachedAnswer !== null) {
+            return response()->json([
+                'message' => $cachedAnswer,
+                'source' => 'cache',
+            ]);
+        }
+
+        $actionResult = (new ActionRunner())->runIfMatched($latestUserMessage, $messages);
+        if ($actionResult !== null) {
+            return response()->json([
+                'message' => $actionResult['message'],
+                'source' => 'action',
+                'action_code' => $actionResult['action_code'],
+                'action_success' => $actionResult['success'],
+            ]);
+        }
+
+        $apiKey = ChatbotSettings::string('anthropic_api_key', '');
+        if ($apiKey === '') {
+            $apiKey = trim((string) env('ANTHROPIC_API_KEY'));
+        }
+
+        if ($apiKey === '') {
+            return response()->json(
+                ['error' => 'Asistan şu anda kullanılamıyor.', 'code' => 'misconfigured_server'],
+                Response::HTTP_SERVICE_UNAVAILABLE
+            );
+        }
+
+        $system = $this->loadSystemPrompt()
+            . (new SourceContextRepository())->buildContext($latestUserMessage);
+        $model = ChatbotSettings::string('model', 'claude-haiku-4-5');
+        $maxTokens = max(1, ChatbotSettings::int('max_tokens', 400));
 
         $payload = [
             'model' => $model,
@@ -118,13 +169,21 @@ class ChatProxyController extends Controller
             }
         }
 
+        $cache->storeAiAnswer($latestUserMessage, $assistantText);
+
         return response()->json([
             'message' => $assistantText,
+            'source' => 'ai',
         ]);
     }
 
     private function loadSystemPrompt(): string
     {
+        $override = ChatbotSettings::string('system_prompt', '');
+        if ($override !== '') {
+            return $override;
+        }
+
         $path = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'prompts' . DIRECTORY_SEPARATOR . 'system_prompt.php';
 
         if (! is_readable($path)) {
