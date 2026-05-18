@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inspera Asistan — yerel deneme</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #eef0f5; min-height: 100vh; }
+    .ib-demo-bar {
+      background: #1a1a2e; color: #fff; padding: 0.85rem 1.25rem;
+      box-shadow: 0 2px 12px rgba(26,26,46,0.2);
+    }
+    .ib-demo-bar h1 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 600; color: #c9a84c; }
+    .ib-demo-bar p { margin: 0; font-size: 0.78rem; opacity: 0.9; line-height: 1.45; }
+    .ib-demo-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.65rem; }
+    .ib-demo-row input[type="password"], .ib-demo-row input[type="text"] {
+      flex: 1; min-width: 12rem; padding: 0.45rem 0.6rem; border-radius: 8px;
+      border: 1px solid rgba(201,168,76,0.4); background: #faf9f7; color: #1a1a2e;
+    }
+    .ib-demo-row button {
+      padding: 0.45rem 0.9rem; border-radius: 8px; border: none; cursor: pointer;
+      background: #c9a84c; color: #1a1a2e; font-weight: 600;
+    }
+    .ib-demo-page { padding: 1.5rem; color: #1a1a2e; max-width: 42rem; }
+    .ib-demo-page h2 { margin-top: 0; font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+
+  <header class="ib-demo-bar">
+    <h1>Yerel deneme (standalone)</h1>
+    <p>
+      Bu dosyayı <strong>file://</strong> ile açmayın; tarayıcı CORS veya güvenlik yüzünden isteği engelleyebilir.
+      Terminalde şu klasörde <code style="background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:4px;">python3 -m http.server 8765</code>
+      çalıştırıp <strong>http://localhost:8765/chatbot-standalone-demo.html</strong> adresini kullanın.
+      Anahtarı yalnızca kendi bilgisayarınızda kullanın; repo veya ekran görüntüsüne koymayın.
+    </p>
+    <div class="ib-demo-row">
+      <label for="ib-api-key" style="font-size:0.8rem;width:100%;">Anthropic API anahtarı (tarayıcıya yüklenir — sadece test):</label>
+      <input type="password" id="ib-api-key" placeholder="sk-ant-..." autocomplete="off" />
+      <button type="button" id="ib-save-key">Kaydet (oturum)</button>
+      <button type="button" id="ib-clear-key" style="background:#3d3d5c;color:#c9a84c;">Temizle</button>
+    </div>
+  </header>
+
+  <main class="ib-demo-page">
+    <h2>Sayfa içeriği örneği</h2>
+    <p>Chat balonu sağ altta. Balona tıklayınca panel açılır.</p>
+  </main>
+
+  <!-- Widget (October partial ile aynı yapı; doğrudan Claude API) -->
+  <div id="inspera-chatbot-root" data-mode="standalone">
+
+<style>
+#inspera-chatbot-root { --inspera-bg: #1a1a2e; --inspera-accent: #c9a84c; --inspera-white: #ffffff; --inspera-muted: #e8e6e1; }
+#inspera-chatbot-root * { box-sizing: border-box; }
+#inspera-chatbot-root .ib-launcher {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 99990;
+  width: 3.5rem; height: 3.5rem; border-radius: 50%;
+  border: 2px solid var(--inspera-accent);
+  background: var(--inspera-bg); color: var(--inspera-accent);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 28px rgba(26, 26, 46, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+#inspera-chatbot-root .ib-launcher:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(26, 26, 46, 0.45); }
+#inspera-chatbot-root .ib-launcher svg { width: 1.5rem; height: 1.5rem; }
+#inspera-chatbot-root .ib-panel {
+  position: fixed; right: 1.25rem; bottom: 5.25rem; z-index: 99991;
+  width: min(22rem, calc(100vw - 2.5rem)); max-height: min(32rem, 70vh);
+  display: none; flex-direction: column;
+  background: var(--inspera-white); border-radius: 16px; overflow: hidden;
+  box-shadow: 0 16px 48px rgba(26, 26, 46, 0.25);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+}
+#inspera-chatbot-root .ib-panel.ib-open { display: flex; }
+#inspera-chatbot-root .ib-header {
+  background: var(--inspera-bg); color: var(--inspera-white);
+  padding: 0.9rem 1rem; display: flex; align-items: center; justify-content: space-between;
+  font-family: Georgia, "Times New Roman", serif; letter-spacing: 0.02em;
+}
+#inspera-chatbot-root .ib-title { font-size: 1rem; font-weight: 600; }
+#inspera-chatbot-root .ib-sub { font-size: 0.7rem; opacity: 0.85; margin-top: 0.15rem; }
+#inspera-chatbot-root .ib-close {
+  background: transparent; border: none; color: var(--inspera-accent);
+  cursor: pointer; font-size: 1.25rem; line-height: 1; padding: 0.25rem;
+}
+#inspera-chatbot-root .ib-messages {
+  flex: 1; overflow-y: auto; padding: 0.85rem; gap: 0.65rem; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, #faf9f7 0%, #f3f1ec 100%);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 0.9rem;
+}
+#inspera-chatbot-root .ib-row { display: flex; width: 100%; }
+#inspera-chatbot-root .ib-row.ib-user { justify-content: flex-end; }
+#inspera-chatbot-root .ib-row.ib-bot { justify-content: flex-start; }
+#inspera-chatbot-root .ib-bubble {
+  max-width: 88%; padding: 0.55rem 0.75rem; border-radius: 14px; line-height: 1.45;
+  white-space: pre-wrap; word-break: break-word;
+}
+#inspera-chatbot-root .ib-bubble.ib-user {
+  background: var(--inspera-bg); color: var(--inspera-white);
+  border-bottom-right-radius: 4px;
+}
+#inspera-chatbot-root .ib-bubble.ib-bot {
+  background: #fff; color: var(--inspera-bg); border: 1px solid rgba(26, 26, 46, 0.08);
+  border-bottom-left-radius: 4px;
+}
+#inspera-chatbot-root .ib-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.35rem; }
+#inspera-chatbot-root .ib-chip {
+  font-size: 0.75rem; padding: 0.35rem 0.55rem; border-radius: 999px;
+  border: 1px solid rgba(201, 168, 76, 0.55); background: #fff; color: var(--inspera-bg);
+  cursor: pointer; font-family: inherit;
+}
+#inspera-chatbot-root .ib-chip:hover { background: rgba(201, 168, 76, 0.12); }
+#inspera-chatbot-root .ib-typing.ib-visible { display: flex !important; }
+#inspera-chatbot-root .ib-typing { display: none; align-items: center; gap: 0.25rem; padding: 0.35rem 0.5rem; }
+#inspera-chatbot-root .ib-typing span {
+  width: 0.35rem; height: 0.35rem; background: var(--inspera-accent); border-radius: 50%;
+  animation: ib-bounce 1s infinite ease-in-out;
+}
+#inspera-chatbot-root .ib-typing span:nth-child(2) { animation-delay: 0.15s; }
+#inspera-chatbot-root .ib-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ib-bounce { 0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+#inspera-chatbot-root .ib-inputbar {
+  border-top: 1px solid rgba(26, 26, 46, 0.08); padding: 0.55rem; display: flex; gap: 0.45rem;
+  background: #fff;
+}
+#inspera-chatbot-root .ib-input {
+  flex: 1; border: 1px solid rgba(26, 26, 46, 0.15); border-radius: 10px; padding: 0.5rem 0.65rem;
+  font-size: 0.9rem; font-family: inherit; outline: none;
+}
+#inspera-chatbot-root .ib-input:focus { border-color: var(--inspera-accent); }
+#inspera-chatbot-root .ib-send {
+  background: var(--inspera-accent); color: var(--inspera-bg); border: none; border-radius: 10px;
+  padding: 0 1rem; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+#inspera-chatbot-root .ib-send:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (max-width: 480px) {
+  #inspera-chatbot-root .ib-panel { max-height: 75vh; width: calc(100vw - 2rem); right: 1rem; }
+  #inspera-chatbot-root .ib-launcher { right: 1rem; bottom: 1rem; }
+}
+</style>
+
+<button type="button" class="ib-launcher" id="ib-launcher" aria-label="Sohbeti aç" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+  </svg>
+</button>
+
+<div class="ib-panel" id="ib-panel" role="dialog" aria-label="Inspera Asistan">
+  <div class="ib-header">
+    <div>
+      <div class="ib-title">Inspera Asistan</div>
+      <div class="ib-sub">Inspera Bodrum (standalone demo)</div>
+    </div>
+    <button type="button" class="ib-close" id="ib-close" aria-label="Kapat">×</button>
+  </div>
+  <div class="ib-messages" id="ib-messages"></div>
+  <div class="ib-inputbar">
+    <input type="text" class="ib-input" id="ib-input" placeholder="Mesajınızı yazın…" autocomplete="off" maxlength="4000" />
+    <button type="button" class="ib-send" id="ib-send">Gönder</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'inspera_standalone_demo_anthropic_key';
+
+  /** İsteğe bağlı: koda yazmayın; yerine üstteki alanı kullanın. */
+  var ANTHROPIC_API_KEY_FALLBACK = '';
+
+  var SYSTEM_PROMPT = [
+    'Sen Inspera Bodrum\'un dijital asistanısın. Adın "Inspera Asistan".',
+    'Türkçe konuşuyorsun, nazik, samimi ve profesyonelsin.',
+    'Inspera Bodrum hakkında aşağıdaki bilgilere sahipsin:',
+    '',
+    'ÖNEMLİ: Kullanıcıyı web sitesindeki bir sayfaya, bağlantıya veya hash adresine yönlendirme. Kayıt ve rezervasyon süreçleri bu sohbet içinde tamamlanır; gerekli bilgileri burada adım adım toplarsın ve talebi özetlersin.',
+    '',
+    '---',
+    '',
+    '### GENEL BİLGİ',
+    'Inspera Bodrum, Bodrum\'da sanat, kültür, gastronomi ve yaratıcılığı bir arada sunan',
+    'premium bir yaşam ve deneyim merkezi. Akademi, tiyatro, sergi, gastronomi ve butik',
+    'mağazalardan oluşuyor.',
+    'Web sitesi (yalnızca bilgi amaçlı, paylaş ama tıklanacak link önerme): turkuaz.insperabodrum.com',
+    '',
+    '---',
+    '',
+    '### AKADEMİ & ATÖLYELER',
+    '- Akrilik Sanat Atölyesi (Başlangıç ve Orta Seviye)',
+    '  - Renk teorisi, karıştırma, doku ve kompozisyon teknikleri',
+    '  - Tüm malzemeler dahil',
+    '  - 4-12 kişilik gruplar',
+    '  - Her katılımcı tamamlanmış bir tuval eseriyle ayrılır',
+    '- Seramik, resim, yoga, gastronomi atölyeleri de mevcut',
+    '- Atölye kayıt taleplerini bu sohbet üzerinden karşıla; ad, iletişim, atölye türü, tarih/saat tercihi ve kişi sayısını sor.',
+    '',
+    '---',
+    '',
+    '### TİYATRO — INSPERA THEATER',
+    '- Profesyonel sahne gösterileri',
+    '- Oyunculuk atölyeleri',
+    '- Çocuk tiyatrosu: "Sihirli Fırça" (4-10 yaş)',
+    '  - Gösterim sonrası oyuncularla fotoğraf ve mini akrilik boya atölyesi',
+    '- Yetişkin oyunu: "Bodrum\'un Rüzgarı"',
+    '  - Aşk, ayrılık ve yeniden doğuşu konu alan özgün prodüksiyon',
+    '- Tiyatro bileti ve kayıt taleplerini bu sohbet üzerinden karşıla; oyun, tarih, kişi sayısı ve iletişim bilgilerini topla.',
+    '',
+    '---',
+    '',
+    '### SERGİ & KÜRASYON',
+    '- Akrilik sanat ağırlıklı özgün eserler',
+    '- Yerel ve davetli sanatçı sergileri',
+    '- Inspera Akademi mezunlarının eserleri',
+    '- Sergi ve ziyaret ile ilgili soruları burada yanıtla; rezervasyon gerekiyorsa bilgileri sohbet içinde topla.',
+    '',
+    '---',
+    '',
+    '### GASTRONOMİ — VOYN KITCHEN & BAR',
+    '- Ege mutfağı + modern teknikler',
+    '- Denize nazır masalar',
+    '- Hafta sonu özel şef masası',
+    '- Eşleştirilmiş şarap akşam yemekleri',
+    '- Degüstasyon menüleri',
+    '- Restoran rezervasyonlarını bu sohbet üzerinden al: tarih-saat, kişi sayısı, iletişim, özel istekler; menü özeti istenirse sözlü anlat, siteye gönderme.',
+    '',
+    '---',
+    '',
+    '### MAĞAZALAR',
+    '1. **Inspera Art Boutique** — Akrilik tablolar, seramik, özgün sanat eserleri',
+    '2. **Inspera Style** — Yerel tasarımcı giyim, el işlemeli aksesuarlar',
+    '3. **Inspera Craft** — Geleneksel Türk el sanatları, hediyelik ürünler',
+    '- Soruları burada yanıtla; mağazaya yönlendirme bağlantısı verme.',
+    '',
+    '---',
+    '',
+    '### KAYIT VE REZERVASYON (BU SOHBET)',
+    'Tüm talepler bu diyalog içinde oluşturulur. Kullanıcı kayıt, bilet veya masa istediğinde şu bilgileri eksiksiz toplamaya çalış:',
+    '- Ad soyad',
+    '- Telefon veya e-posta',
+    '- Talep türü (atölye / tiyatro / restoran / diğeri)',
+    '- Tercih edilen tarih ve saat veya tarih aralığı',
+    '- Kişi sayısı ve varsa ek notlar',
+    'Eksik alanları nazikçe tek tek sor. Topladığın bilgileri kısa bir özet blokta teyit ettir ("Özet doğru mu?") ve sonraki adım olarak kullanıcıyı chat panelinin altında bulunan **"Kayıt / rezervasyon talebi"** bölümüne yönlendir: bilgileri oradaki forma da girmeli ve **Gönder** ile sisteme iletmeli. Resmî talep ancak bu form API üzerinden veritabanına kaydolur — yalnızca sohbet metni tek başına yeterli sayılmaz. Harici URL veya "şu sayfaya gidin" deme.',
+    '',
+    '---',
+    '',
+    '### YANIT KURALLARI',
+    '1. Her zaman Türkçe yaz',
+    '2. Kısa ve öz yanıtlar ver (maksimum 3-4 cümle)',
+    '3. Kayıt ve rezervasyon için asla site linkine veya sayfa yoluna yönlendirme yapma; süreci sohbette yürüt',
+    '4. Bilmediğin veya güncel takvim gerektiren konularda dürüst ol; bilemediğin detay için ekibe iletilecek şekilde iletişim bilgisini talep et ve özeti güncelle — yine de harici bağlantı verme',
+    '5. Emoji kullanabilirsin ama abartma',
+    '6. Her yanıtın sonunda sohbeti ilerletecek net bir sonraki soru veya adım öner (yönlendirme bağlantısı olmadan)'
+  ].join('\n');
+
+  var MODEL = 'claude-sonnet-4-20250514';
+  var MAX_TOKENS = 500;
+  var ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+
+  var apiKeyInput = document.getElementById('ib-api-key');
+  var saveKeyBtn = document.getElementById('ib-save-key');
+  var clearKeyBtn = document.getElementById('ib-clear-key');
+
+  if (apiKeyInput) {
+    apiKeyInput.value = sessionStorage.getItem(STORAGE_KEY) || '';
+  }
+
+  function getApiKey() {
+    var fromInput = apiKeyInput && apiKeyInput.value ? apiKeyInput.value.trim() : '';
+    if (fromInput) return fromInput;
+    return (typeof ANTHROPIC_API_KEY_FALLBACK === 'string' ? ANTHROPIC_API_KEY_FALLBACK.trim() : '') || '';
+  }
+
+  if (saveKeyBtn) {
+    saveKeyBtn.addEventListener('click', function () {
+      if (apiKeyInput && apiKeyInput.value.trim()) {
+        sessionStorage.setItem(STORAGE_KEY, apiKeyInput.value.trim());
+      } else {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+      alert(apiKeyInput && apiKeyInput.value.trim() ? 'Anahtar bu sekme için kaydedildi (sessionStorage).' : 'Alan boş.');
+    });
+  }
+
+  if (clearKeyBtn) {
+    clearKeyBtn.addEventListener('click', function () {
+      sessionStorage.removeItem(STORAGE_KEY);
+      if (apiKeyInput) apiKeyInput.value = '';
+    });
+  }
+
+  var root = document.getElementById('inspera-chatbot-root');
+  if (!root) return;
+
+  var quickReplies = [
+    'Atölye bilgisi almak istiyorum',
+    'Tiyatro programı nedir?',
+    'Rezervasyon yapmak istiyorum',
+    'Voyn Kitchen menüsü nedir?'
+  ];
+
+  var greeting =
+    'Merhaba! Inspera Bodrum\'a hoş geldiniz 🎨\n\n' +
+    'Size nasıl yardımcı olabilirim?\n\n' +
+    '• 🎨 Akademi & Atölyeler\n' +
+    '• 🎭 Tiyatro & Etkinlikler  \n' +
+    '• 🍽️ Gastronomi & Rezervasyon\n' +
+    '• 🛍️ Mağazalar\n' +
+    '• 📅 Rezervasyon Yap';
+
+  var conversationHistory = [];
+  var chipsVisible = false;
+  var panelOpen = false;
+
+  var launcher = document.getElementById('ib-launcher');
+  var panel = document.getElementById('ib-panel');
+  var closeBtn = document.getElementById('ib-close');
+  var messagesEl = document.getElementById('ib-messages');
+  var input = document.getElementById('ib-input');
+  var sendBtn = document.getElementById('ib-send');
+
+  function row(className, bubbleClass, text) {
+    var rowEl = document.createElement('div');
+    rowEl.className = 'ib-row ' + className;
+    var b = document.createElement('div');
+    b.className = 'ib-bubble ' + bubbleClass;
+    b.textContent = text;
+    rowEl.appendChild(b);
+    messagesEl.appendChild(rowEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function renderChips() {
+    var wrap = document.createElement('div');
+    wrap.className = 'ib-row ib-bot';
+    var inner = document.createElement('div');
+    inner.className = 'ib-bubble ib-bot';
+    var chips = document.createElement('div');
+    chips.className = 'ib-chips';
+    quickReplies.forEach(function (txt) {
+      var c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'ib-chip';
+      c.textContent = txt;
+      c.addEventListener('click', function () { submitUser(txt); });
+      chips.appendChild(c);
+    });
+    inner.appendChild(chips);
+    wrap.appendChild(inner);
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function showTyping(show) {
+    var id = 'ib-typing-indicator';
+    var el = document.getElementById(id);
+    if (show) {
+      if (!el) {
+        el = document.createElement('div');
+        el.id = id;
+        el.className = 'ib-row ib-bot';
+        var inner = document.createElement('div');
+        inner.className = 'ib-bubble ib-bot';
+        var t = document.createElement('div');
+        t.className = 'ib-typing ib-visible';
+        t.innerHTML = '<span></span><span></span><span></span>';
+        inner.appendChild(t);
+        el.appendChild(inner);
+        messagesEl.appendChild(el);
+      }
+    } else if (el) el.remove();
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function mapAnthropicError(data, status) {
+    if (data && typeof data.error === 'object' && data.error && typeof data.error.message === 'string') {
+      return data.error.message;
+    }
+    if (typeof data.error === 'string') return data.error;
+    if (status === 429) {
+      return 'Çok fazla istek gönderildi. Lütfen kısa bir süre sonra tekrar deneyin.';
+    }
+    if (!status || status >= 500) {
+      return 'Bir bağlantı veya sunucu hatası oluştu. Lütfen daha sonra deneyin.';
+    }
+    return 'Bir sorun oluştu. Lütfen biraz sonra tekrar deneyin.';
+  }
+
+  function appendWelcome() {
+    row('ib-bot', 'ib-bot', greeting);
+    renderChips();
+    chipsVisible = true;
+  }
+
+  function togglePanel(force) {
+    panelOpen = force !== undefined ? force : !panelOpen;
+    panel.classList.toggle('ib-open', panelOpen);
+    launcher.setAttribute('aria-expanded', panelOpen ? 'true' : 'false');
+    if (panelOpen && conversationHistory.length === 0 && messagesEl.children.length === 0) {
+      appendWelcome();
+      input.focus();
+    }
+  }
+
+  function submitUser(text) {
+    var trimmed = (text || '').trim();
+    if (!trimmed) return;
+
+    row('ib-user', 'ib-user', trimmed);
+    conversationHistory.push({ role: 'user', content: trimmed });
+
+    if (chipsVisible) {
+      chipsVisible = false;
+      var wraps = messagesEl.querySelectorAll('.ib-chips');
+      wraps.forEach(function (n) { n.closest('.ib-row').remove(); });
+    }
+
+    sendAssistant();
+  }
+
+  function sendAssistant() {
+    var key = getApiKey();
+    if (!key) {
+      row('ib-bot', 'ib-bot', 'Önce üst bardaki Anthropic API anahtarını girin veya Kaydet\'e basın.');
+      input.focus();
+      return;
+    }
+
+    sendBtn.disabled = true;
+    input.disabled = true;
+    showTyping(true);
+
+    fetch(ANTHROPIC_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: SYSTEM_PROMPT,
+        messages: conversationHistory
+      })
+    })
+      .then(function (res) {
+        return res.text().then(function (text) {
+          var parsed = {};
+          try { parsed = text ? JSON.parse(text) : {}; } catch (ignore) {}
+          return { ok: res.ok, status: res.status, data: parsed };
+        });
+      })
+      .then(function (ctx) {
+        showTyping(false);
+        if (!ctx.ok) {
+          row('ib-bot', 'ib-bot', mapAnthropicError(ctx.data, ctx.status));
+          return;
+        }
+        var msg = '';
+        if (ctx.data.content && ctx.data.content.length) {
+          for (var i = 0; i < ctx.data.content.length; i++) {
+            var block = ctx.data.content[i];
+            if (block && block.type === 'text' && block.text) msg += block.text;
+          }
+        }
+        msg = typeof msg === 'string' ? msg.trim() : '';
+        if (!msg) msg = '(Yanıt alınamadı. Lütfen tekrar deneyin.)';
+        conversationHistory.push({ role: 'assistant', content: msg });
+        row('ib-bot', 'ib-bot', msg);
+      })
+      .catch(function () {
+        showTyping(false);
+        row('ib-bot', 'ib-bot', 'Bağlantı kurulamadı. Yerel sunucuda açtığınızdan emin olun (http://localhost).');
+      })
+      .finally(function () {
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      });
+  }
+
+  launcher.addEventListener('click', function () { togglePanel(); });
+  closeBtn.addEventListener('click', function () { togglePanel(false); });
+  sendBtn.addEventListener('click', function () {
+    submitUser(input.value);
+    input.value = '';
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitUser(input.value);
+      input.value = '';
+    }
+  });
+})();
+</script>
+  </div>
+</body>
+</html>

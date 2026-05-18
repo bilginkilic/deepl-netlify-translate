@@ -1,0 +1,11 @@
+{
+    "name": "inspera/chatbot",
+    "description": "Inspera Bodrum chatbot Claude proxy for October CMS v3.",
+    "type": "october-plugin",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Inspera\\Chatbot\\": ""
+        }
+    }
+}
