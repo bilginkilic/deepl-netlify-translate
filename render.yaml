@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: deepl-translate-proxy
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # İsteğe bağlı: CORS_ORIGIN, DEEPL_API_URL

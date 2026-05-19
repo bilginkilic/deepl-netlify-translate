@@ -2,11 +2,16 @@
   "name": "deepl-netlify-translate",
   "private": true,
   "scripts": {
+    "start": "node render/server.mjs",
+    "dev:render": "PORT=3000 node render/server.mjs",
     "pack:chatbot": "sh -c 'cd plugins/inspera/chatbot && npm pack && mv -f inspera-october-chatbot-*.tgz ../../../'",
     "dev:netlify": "npx --yes netlify-cli@26 dev --port 8888",
     "dev:netlify:debug": "NODE_OPTIONS='--inspect=9229' npx --yes netlify-cli@26 dev --port 8888"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
   }
 }
