@@ -16,6 +16,17 @@ class ChatbotSettings
             $value = null;
         }
 
+        if (($value === null || $value === '') && $key === 'ai_model') {
+            try {
+                $legacy = Settings::get('model');
+                if ($legacy !== null && $legacy !== '') {
+                    return $legacy;
+                }
+            } catch (Throwable $e) {
+                // ignore legacy lookup failures
+            }
+        }
+
         if ($value === null || $value === '') {
             return self::configFallback($key, $default);
         }
@@ -140,7 +151,7 @@ class ChatbotSettings
     {
         $map = [
             'anthropic_api_key' => 'inspera.chatbot.anthropic_api_key',
-            'model' => 'inspera.chatbot.model',
+            'ai_model' => 'inspera.chatbot.model',
             'max_tokens' => 'inspera.chatbot.max_tokens',
             'max_client_messages' => 'inspera.chatbot.max_client_messages',
             'max_message_chars' => 'inspera.chatbot.max_message_chars',
@@ -157,7 +168,7 @@ class ChatbotSettings
             'enabled' => true,
             'assistant_name' => 'Inspera Asistan',
             'greeting' => self::defaultGreeting(),
-            'model' => 'claude-haiku-4-5',
+            'ai_model' => 'claude-haiku-4-5',
             'max_tokens' => 400,
             'max_client_messages' => 24,
             'max_message_chars' => 4000,

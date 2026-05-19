@@ -25,6 +25,15 @@ class Plugin extends PluginBase
         );
     }
 
+    public function registerMarkupTags(): array
+    {
+        return [
+            'functions' => [
+                'csrf_token' => static fn (): ?string => csrf_token(),
+            ],
+        ];
+    }
+
     public function registerSettings(): array
     {
         return [

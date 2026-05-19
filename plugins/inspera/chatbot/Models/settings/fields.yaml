@@ -60,7 +60,7 @@ tabs:
             type: password
             comment: Boş bırakılırsa ANTHROPIC_API_KEY env değeri kullanılır.
 
-        model:
+        ai_model:
             label: Model
             tab: AI ve maliyet
             type: text

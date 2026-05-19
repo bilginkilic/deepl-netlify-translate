@@ -99,7 +99,7 @@ class ChatProxyController extends Controller
 
         $system = $this->loadSystemPrompt()
             . (new SourceContextRepository())->buildContext($latestUserMessage);
-        $model = ChatbotSettings::string('model', 'claude-haiku-4-5');
+        $model = ChatbotSettings::string('ai_model', 'claude-haiku-4-5');
         $maxTokens = max(1, ChatbotSettings::int('max_tokens', 400));
 
         $payload = [
