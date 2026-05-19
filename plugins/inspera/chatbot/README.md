@@ -2,11 +2,31 @@
 
 Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API proxy’si, October CMS yönetim ekranı, tekrar soru cache’i, seçilebilir site veri kaynakları ve temada gömülü vanilla widget.
 
+## Geliştirme (plugin kaynağı)
+
+Tüm özellik geliştirmesi **`plugins/inspera/chatbot/`** klasöründe yapılır. Bu repo (`deepl-netlify-translate`) eklentinin kaynak ağacıdır; October test projelerine sadece kopyalanır.
+
+| Bileşen | Yol |
+|---------|-----|
+| Backend ayarları | `Models/`, `Models/settings/fields.yaml` |
+| Veri kaynağı eşleme UI | `formwidgets/DataSourceMapper.php` |
+| Frontend widget | `components/chatwidget/default.htm` |
+| API / proxy | `Classes/`, `routes.php` |
+| Migration | `updates/` |
+
+October projesine aktarmak için:
+
+```bash
+rsync -a plugins/inspera/chatbot/ /path/to/october/plugins/inspera/chatbot/
+cd /path/to/october && composer dump-autoload && php artisan cache:clear
+```
+
+Tema tarafında yalnızca layout’a component eklenir; widget HTML/JS tema dosyasında tutulmaz.
+
 ## Kurulum
 
 1. **`plugins/inspera/chatbot`** klasörünü October v3 projenizin `plugins/inspera/chatbot` yoluna kopyalayın.
-2. **`themes/inspera-bodrum/partials/inspera-chatbot.htm`** dosyasını aktif temanızın `partials/` altına kopyalayın (veya doğrudan referans alın).
-3. Proje kökünde Composer autoload’ı yenileyin:
+2. Proje kökünde Composer autoload’ı yenileyin:
 
    ```bash
    composer dump-autoload
@@ -19,7 +39,12 @@ Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API 
    ANTHROPIC_API_KEY=sk-ant-api03-...
    ```
 
-6. Aktif layout’unuzda `</body>` kapanışından hemen önce partial’ı ekleyin; head içinde CSRF meta kullanın (örnek için bkz. `themes/inspera-bodrum/layouts/example-default-with-chatbot.htm`):
+6. Aktif layout’un **INI bölümüne** component’i kaydedin ve `</body>` kapanışından hemen önce çağırın; head içinde CSRF meta kullanın:
+
+   ```ini
+   [insperaChatbot]
+   ==
+   ```
 
    ```twig
    <head>
@@ -27,9 +52,13 @@ Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API 
        <meta name="csrf-token" content="{{ csrf_token() }}">
    </head>
    …
-   {% partial 'inspera-chatbot' %}
+   {% component 'insperaChatbot' %}
    </body>
    ```
+
+   **Not:** Yalnızca `{% component 'insperaChatbot' %}` yazmak yetmez; October CMS’de component’in layout INI’sinde `[insperaChatbot]` olarak tanımlı olması gerekir. Aksi halde bubble HTML’i hiç render edilmez.
+
+   Eski kurulumlarda `{% partial 'inspera-chatbot' %}` kullanılıyorsa partial yalnızca component’e yönlendirebilir.
 
 Site alt dizinde ise (`https://ornek.com/cms/` gibi) partial içindeki `data-endpoint` değerini veya `inspera-chatbot.htm` içindeki `ENDPOINT` önekini uygun taban URL ile uyumlu hale getirin.
 
@@ -39,7 +68,7 @@ October backend’de **Ayarlar > Inspera > Inspera Chatbot** ekranından şu ala
 
 - Chatbot aktif/pasif, asistan adı, karşılama mesajı ve hızlı menü butonları
 - Anthropic API key, model, token/message sınırları ve opsiyonel sistem prompt override
-- AI’a gönderilecek seçili veri kaynakları: statik içerik, CMS sayfaları veya izin verilen veritabanı tabloları
+- AI’a gönderilecek seçili veri kaynakları: statik içerik, CMS sayfaları veya veritabanı tabloları — **backend’de tablo/sayfa seçimi ve sürükle-bırak alan eşleme** (`datasourcemapper` form widget)
 - Statik cevaplar: belirli sorular AI’a gitmeden cevaplanır
 - Cache politikası: AI cevapları tekrar kullanım tablosuna kaydedilebilir ve aynı soru tekrar geldiğinde AI çağrısı yapılmaz
 - Action/webhook tanımları: rezervasyon veya benzer işlemler için tetikleyici kelimeler, webhook URL, başarı/hata mesajı ve loglama
@@ -95,6 +124,17 @@ Eklenti güncellemesi **v1.0.1** ile `inspera_chatbot_booking_requests` tablosu 
 Sağlık kontrolü: `{ "ok": true, "service": "inspera-chatbot-bookings" }`
 
 Tema partial’ında **Kayıt / rezervasyon talebi** bölümü bu endpoint’e `POST` atar (`data-bookings-endpoint`). Alt site yolunda yayın yapıyorsanız Twig’da bu data attribute’ları taban URL ile uyumlu hale getirin.
+
+## Testler
+
+October test projesinde plugin dizininden:
+
+```bash
+cd plugins/inspera/chatbot
+php ../../../vendor/bin/phpunit -c phpunit.xml
+```
+
+Kapsanan alanlar: `DataSourceCatalog`, `ChatbotSettings`, `StaticAnswerResolver`, `SourceContextRepository`, `QuestionCacheRepository`, `ActionRunner`.
 
 ## Güvenlik
 

@@ -71,13 +71,23 @@ class ChatbotSettings
     {
         $value = self::get($key, []);
         if (! is_array($value)) {
-            return [];
+            $value = [];
         }
 
         $rows = [];
         foreach ($value as $row) {
             if (is_array($row)) {
                 $rows[] = $row;
+            }
+        }
+
+        if ($rows === []) {
+            if ($key === 'data_sources') {
+                return ChatbotDefaults::dataSources();
+            }
+
+            if ($key === 'static_answers') {
+                return ChatbotDefaults::staticAnswers();
             }
         }
 
@@ -115,6 +125,24 @@ class ChatbotSettings
 
         if ($items !== []) {
             return $items;
+        }
+
+        $defaults = ChatbotDefaults::menuItems();
+        if ($defaults !== []) {
+            $items = [];
+            foreach ($defaults as $row) {
+                $label = trim((string) ($row['label'] ?? ''));
+                $message = trim((string) ($row['message'] ?? $label));
+                if ($label === '' || $message === '') {
+                    continue;
+                }
+
+                $items[] = ['label' => $label, 'message' => $message];
+            }
+
+            if ($items !== []) {
+                return $items;
+            }
         }
 
         return [
@@ -172,7 +200,7 @@ class ChatbotSettings
             'max_tokens' => 400,
             'max_client_messages' => 24,
             'max_message_chars' => 4000,
-            'source_context_limit' => 4,
+            'source_context_limit' => 6,
             'auto_cache_ai_answers' => true,
             'auto_approve_cache' => true,
             'cache_ttl_days' => 0,

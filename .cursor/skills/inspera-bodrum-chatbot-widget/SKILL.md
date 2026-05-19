@@ -12,23 +12,30 @@ Follow this skill when implementing, fixing, or extending the Inspera Bodrum AI 
 
 ## Project layout
 
+**Kaynak (geliştirme burada):** `plugins/inspera/chatbot/`
+
 ```
 plugins/inspera/chatbot/
 ├── Plugin.php
-├── Classes/            # proxy, booking API, v2 orchestration services
-├── Models/             # October SettingsModel and stored request/cache records
-├── updates/            # October migrations
+├── components/
+│   ├── ChatWidget.php
+│   └── chatwidget/default.htm   # frontend widget (HTML/CSS/JS)
+├── formwidgets/
+│   └── DataSourceMapper.php     # veri kaynağı alan eşleme UI
+├── Classes/                     # proxy, booking API, data sources
+├── Models/                      # SettingsModel, cache/booking records
+├── updates/                     # migrations
 └── README.md
 
-themes/inspera-bodrum/partials/inspera-chatbot.htm
+themes/inspera-bodrum/partials/inspera-chatbot.htm   # ince sarmalayıcı → {% component 'insperaChatbot' %}
 ```
 
 ## Technical requirements
 
-- **Stack:** October CMS v3 plugin backend + vanilla JavaScript/Twig partial (**no frontend frameworks**).
+- **Stack:** October CMS v3 plugin backend + vanilla JavaScript component (**no frontend frameworks**).
 - **API:** Anthropic Claude Messages API through the server proxy; default model **`claude-haiku-4-5`** (cost-effective). For higher quality use **`claude-sonnet-4-6`** or override via October settings / `INSPERA_CHATBOT_MODEL`.
 - **Endpoint:** `https://api.anthropic.com/v1/messages`
-- **Embed:** October theme partial inserted **before** `</body>` on the Inspera site.
+- **Embed:** `{% component 'insperaChatbot' %}` before `</body>` (widget lives in the plugin, not the theme).
 - **API key:** Provided by the site owner through backend settings or `.env`; never commit real keys.
 - **V2 cost flow:** static answer -> approved question cache -> configured site data context -> Anthropic. Save reusable AI answers to the cache table when enabled.
 - **V2 settings page:** expose greeting/menu items, static answers, data sources, cache policy, and action hooks from the October backend.

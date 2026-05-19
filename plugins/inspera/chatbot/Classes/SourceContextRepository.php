@@ -7,6 +7,7 @@ use Cms\Classes\Theme;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
+use Carbon\Carbon;
 
 class SourceContextRepository
 {
@@ -24,6 +25,14 @@ class SourceContextRepository
             }
 
             $type = (string) ($source['type'] ?? 'static');
+            if ($type === 'site_settings') {
+                $snippet = $this->siteSettingsSnippet($question, $source);
+                if ($snippet !== null) {
+                    $snippets[] = $snippet;
+                }
+                continue;
+            }
+
             if ($type === 'cms_pages') {
                 $snippets = array_merge($snippets, $this->cmsPageSnippets($question, $source));
                 continue;
@@ -64,6 +73,29 @@ class SourceContextRepository
     }
 
     /** @param array<string, mixed> $source */
+    private function siteSettingsSnippet(string $question, array $source): ?array
+    {
+        $mapping = DataSourceCatalog::resolveSourceMapping($source);
+        $content = SiteSettingsReader::formatBlock(
+            $mapping['settings_keys'],
+            $mapping['settings_code'] !== '' ? $mapping['settings_code'] : 'swordbros_settings'
+        );
+
+        if ($content === '') {
+            return null;
+        }
+
+        $title = trim((string) ($source['title'] ?? 'Site iletişim bilgileri'));
+        $haystack = $title . ' ' . $content . ' adres iletişim telefon email harita yol tarifi';
+
+        return [
+            'title' => $title,
+            'content' => $content,
+            'score' => max(1, $this->score($question, $haystack)),
+        ];
+    }
+
+    /** @param array<string, mixed> $source */
     private function staticSnippet(string $question, array $source): ?array
     {
         $content = trim((string) ($source['content'] ?? ''));
@@ -72,7 +104,7 @@ class SourceContextRepository
         }
 
         $title = trim((string) ($source['title'] ?? 'Statik kaynak'));
-        $haystack = $title . ' ' . $content . ' ' . implode(' ', $this->terms($source['keywords'] ?? []));
+        $haystack = $title . ' ' . $content;
 
         return [
             'title' => $title,
@@ -102,19 +134,47 @@ class SourceContextRepository
             return [];
         }
 
+        $mapping = DataSourceCatalog::resolveSourceMapping($source);
+        $selectedPages = $mapping['pages'];
+        $searchFields = $mapping['search_fields'] !== []
+            ? $mapping['search_fields']
+            : ['title', 'url', 'markup', 'meta_description'];
+        $displayFields = $mapping['display_fields'] !== []
+            ? $mapping['display_fields']
+            : $searchFields;
+        $titleField = $mapping['title_field'] !== '' ? $mapping['title_field'] : 'title';
+        $keywordBoost = implode(' ', $searchFields);
+
         $snippets = [];
         foreach ($pages as $page) {
-            $title = (string) ($page->title ?? $page->fileName ?? 'CMS sayfası');
-            $content = $this->compact((string) ($page->markup ?? ''));
-            $url = (string) ($page->url ?? '');
-            $score = $this->score($question, $title . ' ' . $url . ' ' . $content . ' ' . implode(' ', $this->terms($source['keywords'] ?? [])));
+            $fileName = (string) ($page->fileName ?? '');
+            if ($selectedPages !== [] && ! in_array($fileName, $selectedPages, true)) {
+                continue;
+            }
+
+            $fieldValues = $this->cmsFieldValues($page);
+            $searchHaystack = implode(' ', array_map(
+                static fn (string $field): string => (string) ($fieldValues[$field] ?? ''),
+                $searchFields
+            ));
+            $score = $this->score($question, $searchHaystack . ' ' . $keywordBoost);
             if ($score <= 0) {
                 continue;
             }
 
+            $displayParts = [];
+            foreach ($displayFields as $field) {
+                $value = trim((string) ($fieldValues[$field] ?? ''));
+                if ($value !== '') {
+                    $label = DataSourceCatalog::cmsFieldCatalog()[$field] ?? $field;
+                    $displayParts[] = $label . ': ' . $value;
+                }
+            }
+
+            $pageTitle = trim((string) ($fieldValues[$titleField] ?? $page->title ?? $page->fileName ?? 'CMS sayfası'));
             $snippets[] = [
-                'title' => 'CMS: ' . $title,
-                'content' => $content,
+                'title' => 'CMS: ' . $pageTitle,
+                'content' => implode('; ', $displayParts),
                 'score' => $score,
             ];
         }
@@ -128,37 +188,71 @@ class SourceContextRepository
      */
     private function databaseSnippets(string $question, array $source): array
     {
-        $table = trim((string) ($source['table_name'] ?? ''));
-        if (! preg_match('/^[A-Za-z0-9_]+$/', $table) || ! Schema::hasTable($table)) {
+        $mapping = DataSourceCatalog::resolveSourceMapping($source);
+        $table = $mapping['table_name'];
+        if (! DataSourceCatalog::isSafeIdentifier($table) || ! Schema::hasTable($table)) {
             return [];
         }
 
-        $columns = array_values(array_filter(array_map('trim', explode(',', (string) ($source['columns'] ?? '')))));
-        $columns = array_values(array_filter($columns, static function (string $column) use ($table): bool {
-            return preg_match('/^[A-Za-z0-9_]+$/', $column) === 1 && Schema::hasColumn($table, $column);
-        }));
+        $searchColumns = array_values(array_filter(
+            $mapping['search_fields'],
+            static fn (string $column): bool => DataSourceCatalog::isSafeIdentifier($column) && Schema::hasColumn($table, $column)
+        ));
+        $displayColumns = array_values(array_filter(
+            $mapping['display_fields'],
+            static fn (string $column): bool => DataSourceCatalog::isSafeIdentifier($column) && Schema::hasColumn($table, $column)
+        ));
 
-        if ($columns === []) {
+        if ($searchColumns === []) {
+            $searchColumns = $displayColumns;
+        }
+
+        if ($displayColumns === []) {
+            $displayColumns = $searchColumns;
+        }
+
+        if ($searchColumns === []) {
             return [];
         }
 
+        $selectColumns = array_values(array_unique(array_merge($searchColumns, $displayColumns)));
         $tokens = $this->queryTokens($question);
         if ($tokens === []) {
             return [];
         }
 
         $maxResults = max(1, min(10, (int) ($source['max_results'] ?? 3)));
+        $titleField = $mapping['title_field'];
+        $keywordBoost = implode(' ', $searchColumns);
 
         try {
-            $rows = DB::table($table)
-                ->select($columns)
-                ->where(function ($query) use ($columns, $tokens): void {
-                    foreach ($columns as $column) {
+            $query = DB::table($table)
+                ->select($selectColumns)
+                ->where(function ($query) use ($searchColumns, $tokens): void {
+                    foreach ($searchColumns as $column) {
                         foreach ($tokens as $token) {
                             $query->orWhere($column, 'like', '%' . $token . '%');
                         }
                     }
-                })
+                });
+
+            if (Schema::hasColumn($table, 'is_enabled')) {
+                $query->where('is_enabled', 1);
+            }
+
+            if (Schema::hasColumn($table, 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            if (! empty($source['upcoming_only']) && Schema::hasColumn($table, 'start')) {
+                $query->where('start', '>=', Carbon::now());
+            }
+
+            if (Schema::hasColumn($table, 'start')) {
+                $query->orderBy('start');
+            }
+
+            $rows = $query
                 ->limit($maxResults)
                 ->get();
         } catch (Throwable $e) {
@@ -168,7 +262,7 @@ class SourceContextRepository
         $snippets = [];
         foreach ($rows as $row) {
             $values = [];
-            foreach ($columns as $column) {
+            foreach ($displayColumns as $column) {
                 $value = $row->{$column} ?? null;
                 if ($value !== null && trim((string) $value) !== '') {
                     $values[] = $column . ': ' . trim((string) $value);
@@ -176,25 +270,31 @@ class SourceContextRepository
             }
 
             $content = implode('; ', $values);
-            $title = trim((string) ($source['title'] ?? $table));
+            $recordTitle = trim((string) ($source['title'] ?? $table));
+            if ($titleField !== '' && isset($row->{$titleField}) && trim((string) $row->{$titleField}) !== '') {
+                $recordTitle = trim((string) $row->{$titleField});
+            }
+
             $snippets[] = [
-                'title' => 'Tablo ' . $title,
+                'title' => 'Tablo ' . $recordTitle,
                 'content' => $content,
-                'score' => $this->score($question, $content . ' ' . implode(' ', $this->terms($source['keywords'] ?? []))),
+                'score' => $this->score($question, $content . ' ' . $keywordBoost),
             ];
         }
 
         return $snippets;
     }
 
-    /** @param mixed $value @return list<string> */
-    private function terms($value): array
+    /** @return array<string, string> */
+    private function cmsFieldValues(Page $page): array
     {
-        if (is_array($value)) {
-            return array_values(array_filter(array_map('strval', $value)));
-        }
-
-        return array_values(array_filter(array_map('trim', preg_split('/[,;\n]+/', (string) $value) ?: [])));
+        return [
+            'title' => (string) ($page->title ?? ''),
+            'url' => (string) ($page->url ?? ''),
+            'markup' => $this->compact((string) ($page->markup ?? '')),
+            'meta_title' => (string) ($page->meta_title ?? ''),
+            'meta_description' => (string) ($page->meta_description ?? ''),
+        ];
     }
 
     /** @return list<string> */

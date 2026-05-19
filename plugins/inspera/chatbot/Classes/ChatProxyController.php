@@ -58,6 +58,14 @@ class ChatProxyController extends Controller
             );
         }
 
+        $contactAnswer = (new SiteContactResolver())->resolve($latestUserMessage);
+        if ($contactAnswer !== null) {
+            return response()->json([
+                'message' => $contactAnswer,
+                'source' => 'static',
+            ]);
+        }
+
         $staticAnswer = (new StaticAnswerResolver())->resolve($latestUserMessage);
         if ($staticAnswer !== null) {
             return response()->json([

@@ -99,7 +99,7 @@ tabs:
             label: AI'a eklenecek kaynak parçası sınırı
             tab: Veri kaynakları
             type: number
-            default: 4
+            default: 6
             span: left
 
         data_sources:
@@ -121,37 +121,39 @@ tabs:
                         span: right
                         options:
                             static: Statik içerik
+                            site_settings: Site ayarları (iletişim/adres)
                             cms_pages: October CMS sayfaları
                             database_table: Veritabanı tablosu
                     title:
                         label: Kaynak adı
                         type: text
                         span: left
-                    keywords:
-                        label: Anahtar kelimeler
-                        type: taglist
-                        separator: comma
-                        mode: string
-                        span: right
+                    field_mapper:
+                        label: Alan eşleme
+                        type: datasourcemapper
+                        span: full
+                        comment: Tablo veya CMS sayfalarını seçin; alanları sürükleyip arama/gösterim bölgelerine bırakın.
+                        trigger:
+                            action: hide
+                            field: type
+                            condition: value[static|site_settings]
                     content:
                         label: Statik içerik
                         type: textarea
                         size: large
-                    table_name:
-                        label: Tablo adı
-                        type: text
-                        span: left
-                        comment: database_table için kullanılır.
-                    columns:
-                        label: Aranacak kolonlar
-                        type: text
-                        span: right
-                        comment: Virgülle ayırın; örn. title,description,content.
+                        trigger:
+                            action: show
+                            field: type
+                            condition: value[static]
                     max_results:
                         label: Maksimum sonuç
                         type: number
                         default: 3
                         span: left
+                        trigger:
+                            action: show
+                            field: type
+                            condition: value[database_table]
 
         static_answers:
             label: Statik cevaplar

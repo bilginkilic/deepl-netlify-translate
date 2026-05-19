@@ -5,3 +5,6 @@ v1.0.1:
 v2.0.0:
     - October CMS ayar sayfası, tekrar soru cache tablosu ve action log altyapısı
     - create_v2_chatbot_tables.php
+v2.1.0:
+    - Turkuaz varsayılan veri kaynakları (etkinlik, atölye, iletişim, hizmetler)
+    - seed_turkuaz_defaults.php

@@ -2,6 +2,8 @@
 
 namespace Inspera\Chatbot;
 
+use Inspera\Chatbot\Components\ChatWidget;
+use Inspera\Chatbot\FormWidgets\DataSourceMapper;
 use Inspera\Chatbot\Models\Settings;
 use System\Classes\PluginBase;
 
@@ -13,7 +15,7 @@ class Plugin extends PluginBase
             'name' => 'Inspera Chatbot',
             'description' => 'October CMS managed chatbot with Anthropic proxy, data sources, cache, and action hooks.',
             'author' => 'Inspera',
-            'icon' => 'icon-comments'
+            'icon' => 'icon-comments',
         ];
     }
 
@@ -23,6 +25,20 @@ class Plugin extends PluginBase
             __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'chatbot.php',
             'inspera.chatbot'
         );
+    }
+
+    public function registerComponents(): array
+    {
+        return [
+            ChatWidget::class => 'insperaChatbot',
+        ];
+    }
+
+    public function registerFormWidgets(): array
+    {
+        return [
+            DataSourceMapper::class => 'datasourcemapper',
+        ];
     }
 
     public function registerMarkupTags(): array
