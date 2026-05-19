@@ -1,0 +1,33 @@
+{
+  "name": "@inspera/october-chatbot",
+  "version": "2.1.0",
+  "description": "Inspera Chatbot — October CMS eklentisi (Claude proxy, cache, rezervasyon API)",
+  "keywords": [
+    "october",
+    "octobercms",
+    "chatbot",
+    "anthropic",
+    "claude",
+    "inspera"
+  ],
+  "license": "UNLICENSED",
+  "private": true,
+  "files": [
+    "Plugin.php",
+    "composer.json",
+    "README.md",
+    ".env.example",
+    "routes.php",
+    "Classes",
+    "Models",
+    "config",
+    "components",
+    "formwidgets",
+    "prompts",
+    "updates"
+  ],
+  "october": {
+    "plugin": "Inspera.Chatbot",
+    "installPath": "plugins/inspera/chatbot"
+  }
+}

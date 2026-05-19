@@ -14,6 +14,33 @@ Tüm özellik geliştirmesi **`plugins/inspera/chatbot/`** klasöründe yapılı
 | API / proxy | `Classes/`, `routes.php` |
 | Migration | `updates/` |
 
+## npm ile paketleme (sadece bu eklenti)
+
+Eklenti klasöründe veya repo kökünden:
+
+```bash
+# Repo kökü
+npm run pack:chatbot
+# → inspera-october-chatbot-2.1.0.tgz (kökte oluşur)
+
+# veya doğrudan eklenti klasöründe
+cd plugins/inspera/chatbot && npm pack
+```
+
+Yazılımcı kurulumu:
+
+```bash
+npm install ./inspera-october-chatbot-2.1.0.tgz
+# Dosyalar: node_modules/@inspera/october-chatbot/
+# October'a kopyala:
+cp -R node_modules/@inspera/october-chatbot /path/to/october/plugins/inspera/chatbot
+cd /path/to/october && composer dump-autoload
+```
+
+npm registry’ye yayınlamak için `plugins/inspera/chatbot/package.json` içinde `"private": false` yapıp `npm publish --access public` (scoped paket).
+
+---
+
 October projesine aktarmak için:
 
 ```bash

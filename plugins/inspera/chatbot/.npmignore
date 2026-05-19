@@ -1,0 +1,4 @@
+tests/
+phpunit.xml
+.env
+.DS_Store
