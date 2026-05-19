@@ -8,3 +8,6 @@ v2.0.0:
 v2.1.0:
     - Turkuaz varsayılan veri kaynakları (etkinlik, atölye, iletişim, hizmetler)
     - seed_turkuaz_defaults.php
+v2.2.0:
+    - October CMS 4.x (4.2+) uyumluluk bildirimi; PHP 8.2+, composer october/rain ^3.7|^4.0
+    - Twig csrf_token kaçış düzeltmesi (OC4); taglist alanları v3 davranışı korunur

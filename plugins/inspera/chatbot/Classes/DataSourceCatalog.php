@@ -13,7 +13,13 @@ class DataSourceCatalog
     public static function listTables(): array
     {
         try {
-            $tables = Schema::getConnection()->getSchemaBuilder()->getTableListing(null, false);
+            $builder = Schema::getConnection()->getSchemaBuilder();
+            if (! method_exists($builder, 'getTableListing')) {
+                return [];
+            }
+
+            // Laravel 9–12 / October 3–4: imza aynı (schema, schemaQualified).
+            $tables = $builder->getTableListing(null, false);
         } catch (Throwable $e) {
             return [];
         }

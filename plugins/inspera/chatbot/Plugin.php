@@ -13,7 +13,7 @@ class Plugin extends PluginBase
     {
         return [
             'name' => 'Inspera Chatbot',
-            'description' => 'October CMS managed chatbot with Anthropic proxy, data sources, cache, and action hooks.',
+            'description' => 'October CMS 3.7+ / 4.x chatbot: Anthropic proxy, data sources, cache, and action hooks.',
             'author' => 'Inspera',
             'icon' => 'icon-comments',
         ];
@@ -45,7 +45,8 @@ class Plugin extends PluginBase
     {
         return [
             'functions' => [
-                'csrf_token' => static fn (): ?string => csrf_token(),
+                // OC 4.x: Twig varsayılan olarak escape eder; token HTML attribute içinde bozulmasın.
+                'csrf_token' => [static fn (): ?string => csrf_token(), false],
             ],
         ];
     }

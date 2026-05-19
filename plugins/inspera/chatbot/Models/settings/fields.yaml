@@ -190,6 +190,8 @@ tabs:
                         type: taglist
                         separator: comma
                         mode: string
+                        customTags: true
+                        useKey: false
                     answer:
                         label: Cevap
                         type: textarea
@@ -248,6 +250,8 @@ tabs:
                         type: taglist
                         separator: comma
                         mode: string
+                        customTags: true
+                        useKey: false
                         span: right
                     hook_url:
                         label: Webhook URL

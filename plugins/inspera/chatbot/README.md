@@ -1,6 +1,8 @@
-# Inspera.Chatbot (October CMS v3)
+# Inspera.Chatbot (October CMS 3.7+ / 4.x)
 
 Inspera Bodrum için Türkçe Claude asistanı: sunucu üzerinden Anthropic API proxy’si, October CMS yönetim ekranı, tekrar soru cache’i, seçilebilir site veri kaynakları ve temada gömülü vanilla widget.
+
+**Test edilen sürüm:** October CMS **4.2.15** (PHP **8.2+**, Laravel 12 tabanı).
 
 ## Geliştirme (plugin kaynağı)
 
@@ -21,7 +23,7 @@ Eklenti klasöründe veya repo kökünden:
 ```bash
 # Repo kökü
 npm run pack:chatbot
-# → inspera-october-chatbot-2.1.0.tgz (kökte oluşur)
+# → inspera-october-chatbot-2.2.0.tgz (kökte oluşur)
 
 # veya doğrudan eklenti klasöründe
 cd plugins/inspera/chatbot && npm pack
@@ -30,7 +32,7 @@ cd plugins/inspera/chatbot && npm pack
 Yazılımcı kurulumu:
 
 ```bash
-npm install ./inspera-october-chatbot-2.1.0.tgz
+npm install ./inspera-october-chatbot-2.2.0.tgz
 # Dosyalar: node_modules/@inspera/october-chatbot/
 # October'a kopyala:
 cp -R node_modules/@inspera/october-chatbot /path/to/october/plugins/inspera/chatbot
@@ -52,14 +54,16 @@ Tema tarafında yalnızca layout’a component eklenir; widget HTML/JS tema dosy
 
 ## Kurulum
 
-1. **`plugins/inspera/chatbot`** klasörünü October v3 projenizin `plugins/inspera/chatbot` yoluna kopyalayın.
+1. **`plugins/inspera/chatbot`** klasörünü October projenizin `plugins/inspera/chatbot` yoluna kopyalayın (3.7+ veya 4.x).
 2. Proje kökünde Composer autoload’ı yenileyin:
 
    ```bash
    composer dump-autoload
    ```
 
-4. October yönetim panelinde **Eklentiler** bölümünde **Inspera Chatbot** (`Inspera.Chatbot`) eklentisini etkinleştirin ve güncellemeleri çalıştırın. V2 ile `inspera_chatbot_question_cache` ve `inspera_chatbot_action_logs` tabloları eklenir.
+4. October yönetim panelinde **Eklentiler** bölümünde **Inspera Chatbot** (`Inspera.Chatbot`) eklentisini etkinleştirin ve güncellemeleri çalıştırın (v2.2.0’a kadar). V2 ile `inspera_chatbot_question_cache` ve `inspera_chatbot_action_logs` tabloları eklenir.
+
+   **October 4.x:** Proje kökünde `composer.json` içinde `october/rain: ^4.0` ve PHP **8.2+** olmalı. Eklenti `composer.json` bağımlılığı: `october/rain: ^3.7|^4.0`.
 5. Kök **`.env`** dosyasına anahtarları ekleyin (`plugins/inspera/chatbot/.env.example` içeriğine bakın):
 
    ```env

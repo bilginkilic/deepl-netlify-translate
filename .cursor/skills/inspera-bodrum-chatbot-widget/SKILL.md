@@ -32,7 +32,7 @@ themes/inspera-bodrum/partials/inspera-chatbot.htm   # ince sarmalayıcı → {%
 
 ## Technical requirements
 
-- **Stack:** October CMS v3 plugin backend + vanilla JavaScript component (**no frontend frameworks**).
+- **Stack:** October CMS **3.7+ / 4.x** plugin backend + vanilla JavaScript component (**no frontend frameworks**). Target **4.2.15**, PHP **8.2+**.
 - **API:** Anthropic Claude Messages API through the server proxy; default model **`claude-haiku-4-5`** (cost-effective). For higher quality use **`claude-sonnet-4-6`** or override via October settings / `INSPERA_CHATBOT_MODEL`.
 - **Endpoint:** `https://api.anthropic.com/v1/messages`
 - **Embed:** `{% component 'insperaChatbot' %}` before `</body>` (widget lives in the plugin, not the theme).

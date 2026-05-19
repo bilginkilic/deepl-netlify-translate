@@ -1,7 +1,7 @@
 {
   "name": "@inspera/october-chatbot",
-  "version": "2.1.0",
-  "description": "Inspera Chatbot — October CMS eklentisi (Claude proxy, cache, rezervasyon API)",
+  "version": "2.2.0",
+  "description": "Inspera Chatbot — October CMS 3.7+ / 4.x (Claude proxy, cache, rezervasyon API)",
   "keywords": [
     "october",
     "octobercms",
