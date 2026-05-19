@@ -1,5 +1,6 @@
 const DEEPL_FREE = "https://api-free.deepl.com/v2/translate";
 const DEEPL_PRO = "https://api.deepl.com/v2/translate";
+const DEFAULT_DEEPL_TIMEOUT_MS = 25000;
 
 /** İstemci göndermezse DeepL’e eklenen varsayılanlar (gövdede aynı anahtar varsa override edilir). */
 const DEEPL_DEFAULT_FORM = {
@@ -51,6 +52,12 @@ function json(status, body) {
     headers: { "Content-Type": "application/json", ...corsHeaders() },
     body: JSON.stringify(body),
   };
+}
+
+function deeplTimeoutMs() {
+  const raw = Number.parseInt(process.env.DEEPL_TIMEOUT_MS ?? "", 10);
+  if (Number.isFinite(raw) && raw >= 1000) return raw;
+  return DEFAULT_DEEPL_TIMEOUT_MS;
 }
 
 function buildFormBody(payload) {
@@ -130,6 +137,7 @@ export async function handler(event) {
       body: "POST JSON: { text, target_lang, source_lang?, ... } — auth_key burada da olabilir, DeepL gövdesine iletilmez.",
       deepl_defaults:
         "İstemci göndermese bile DeepL’e eklenir (JSON’da aynı alan verilirse override): tag_handling=html, preserve_formatting=1, show_billed_characters=1.",
+      deepl_timeout_ms: deeplTimeoutMs(),
     });
   }
 
@@ -174,14 +182,38 @@ export async function handler(event) {
     return json(400, { error: e instanceof Error ? e.message : "Bad payload" });
   }
 
-  const res = await fetch(deeplEndpoint(authKey), {
-    method: "POST",
-    headers: {
-      Authorization: `DeepL-Auth-Key ${authKey}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: formBody,
-  });
+  const controller = new AbortController();
+  const timeoutMs = deeplTimeoutMs();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res;
+  try {
+    res = await fetch(deeplEndpoint(authKey), {
+      method: "POST",
+      headers: {
+        Authorization: `DeepL-Auth-Key ${authKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formBody,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") {
+      return json(504, {
+        error: "DeepL request timed out",
+        message:
+          "DeepL yanıtı zamanında dönmedi. Daha küçük parça gönderin veya istemci timeout değerini artırın.",
+        timeout_ms: timeoutMs,
+      });
+    }
+
+    return json(502, {
+      error: "DeepL request failed",
+      message: e instanceof Error ? e.message : "DeepL bağlantısı başarısız oldu.",
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
