@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #faf8f5;
+  --foreground: #2c2825;
+  --card: #ffffff;
+  --card-foreground: #2c2825;
+  --primary: #9c6b7a;
+  --primary-foreground: #ffffff;
+  --secondary: #e8ebe4;
+  --secondary-foreground: #3d4a38;
+  --muted: #f0ebe6;
+  --muted-foreground: #6b6560;
+  --accent: #d4e0d0;
+  --accent-foreground: #2d3a28;
+  --border: #e5ddd6;
+  --input: #e5ddd6;
+  --ring: #9c6b7a;
+  --radius: 0.75rem;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif), Georgia, serif;
+  }
+}

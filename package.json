@@ -2,6 +2,8 @@
   "name": "deepl-netlify-translate",
   "private": true,
   "scripts": {
+    "dev:wedding": "npm run dev --prefix wedding-platform",
+    "build:wedding": "npm run build --prefix wedding-platform",
     "start": "node render/server.mjs",
     "dev:render": "PORT=3000 node render/server.mjs",
     "pack:chatbot": "sh -c 'cd plugins/inspera/chatbot && npm pack && mv -f inspera-october-chatbot-*.tgz ../../../'",
