@@ -9,4 +9,15 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
-      # İsteğe bağlı: CORS_ORIGIN, DEEPL_API_URL
+      # SEO API — Render Dashboard'dan secret olarak girin (repoda tutulmaz)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # İsteğe bağlı
+      # - key: SEO_MAX_TOKENS
+      #   value: "8192"
+      # - key: SEO_MODEL
+      #   value: "claude-haiku-4-5-20251001"
+      # - key: CORS_ORIGIN
+      #   value: "*"
+      # - key: DEEPL_API_URL
+      #   value: "https://api.deepl.com/v2/translate"
