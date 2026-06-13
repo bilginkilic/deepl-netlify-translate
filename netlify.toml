@@ -9,3 +9,8 @@
   from = "/api/translate"
   to = "/.netlify/functions/translate"
   status = 200
+
+[[redirects]]
+  from = "/api/seo-optimize"
+  to = "/.netlify/functions/seo-optimize"
+  status = 200
