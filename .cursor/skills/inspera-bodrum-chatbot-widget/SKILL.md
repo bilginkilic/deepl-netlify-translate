@@ -12,30 +12,30 @@ Follow this skill when implementing, fixing, or extending the Inspera Bodrum AI 
 
 ## Project layout
 
-**Kaynak (geliştirme burada):** `plugins/inspera/chatbot/`
+**Kaynak (ayrı repo):** [`swordbrosaichat/`](../../swordbrosaichat/) — GitHub’da bağımsız October eklentisi olarak yayınlanır.
 
 ```
-plugins/inspera/chatbot/
+swordbrosaichat/                 # plugins/swordbros/swordbrosaichat olarak kurulur
 ├── Plugin.php
 ├── components/
 │   ├── ChatWidget.php
-│   └── chatwidget/default.htm   # frontend widget (HTML/CSS/JS)
+│   └── chatwidget/default.htm
 ├── formwidgets/
-│   └── DataSourceMapper.php     # veri kaynağı alan eşleme UI
-├── Classes/                     # proxy, booking API, data sources
-├── Models/                      # SettingsModel, cache/booking records
-├── updates/                     # migrations
-└── README.md
-
-themes/inspera-bodrum/partials/inspera-chatbot.htm   # ince sarmalayıcı → {% component 'insperaChatbot' %}
+│   └── DataSourceMapper.php
+├── Classes/
+├── Models/
+└── updates/
 ```
+
+October kurulum yolu: `plugins/swordbros/swordbrosaichat`
+Component alias: `swordbrosAiChat`
 
 ## Technical requirements
 
 - **Stack:** October CMS **3.7+ / 4.x** plugin backend + vanilla JavaScript component (**no frontend frameworks**). Target **4.2.15**, PHP **8.2+**.
 - **API:** Anthropic Claude Messages API through the server proxy; default model **`claude-haiku-4-5`** (cost-effective). For higher quality use **`claude-sonnet-4-6`** or override via October settings / `INSPERA_CHATBOT_MODEL`.
 - **Endpoint:** `https://api.anthropic.com/v1/messages`
-- **Embed:** `{% component 'insperaChatbot' %}` before `</body>` (widget lives in the plugin, not the theme).
+- **Embed:** `{% component 'swordbrosAiChat' %}` before `</body>` (widget lives in the plugin, not the theme).
 - **API key:** Provided by the site owner through backend settings or `.env`; never commit real keys.
 - **V2 cost flow:** static answer -> approved question cache -> configured site data context -> Anthropic. Save reusable AI answers to the cache table when enabled.
 - **V2 settings page:** expose greeting/menu items, static answers, data sources, cache policy, and action hooks from the October backend.
@@ -207,8 +207,8 @@ Eksik alanları nazikçe tek tek sor. Topladığın bilgileri kısa bir özet bl
 8. Verify mobile layout.
 9. Document setting `ANTHROPIC_API_KEY` or the backend API key; never ship real keys in git.
 10. Document adding the partial before site `</body>`.
-11. Kayıt / rezervasyon: October içinde `POST /inspera-chatbot/api/bookings` ile veritabanına yazılır; partial’daki rezervasyon formu bu endpoint’i kullanır.
-12. Maliyet: October’da `plugins/inspera/chatbot/config/chatbot.php` defaults (Haiku, tighter caps); document `INSPERA_CHATBOT_*` overrides in README.
+11. Kayıt / rezervasyon: October içinde `POST /swordbros-aichat/api/bookings` ile veritabanına yazılır; widget rezervasyon formu bu endpoint’i kullanır.
+12. Maliyet: `swordbrosaichat/config/aichat.php` defaults (Haiku, tighter caps); document `SWORDBROS_AICHAT_*` overrides in README.
 13. Plugin v2: static answers, selected sources, repeated question cache, and action hooks must be manageable without code edits.
 
 ## Security & ops notes

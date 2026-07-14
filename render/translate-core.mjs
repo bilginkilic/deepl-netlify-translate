@@ -16,8 +16,20 @@ function header(headers, name) {
   return undefined;
 }
 
-/** DeepL anahtarı Render'da tutulmaz; her istekte istemci gönderir. */
-function getDeepLAuthKey(headers, payload) {
+/** Render ortam değişkenindeki DeepL anahtarı (öncelikli). */
+function getServerDeepLAuthKey() {
+  const key = process.env.DEEPL_AUTH_KEY;
+  if (typeof key === "string" && key.trim().length) {
+    return key.trim();
+  }
+  return null;
+}
+
+/**
+ * İstemci anahtarı yalnızca DEEPL_AUTH_KEY env tanımlı değilse (yerel geliştirme).
+ * Üretimde Render dashboard → Environment → DEEPL_AUTH_KEY kullanın.
+ */
+function getClientDeepLAuthKey(headers, payload) {
   const auth = header(headers, "authorization");
   if (auth) {
     const m = auth.match(/^deepl-auth-key\s+(.+)$/i);
@@ -29,6 +41,15 @@ function getDeepLAuthKey(headers, payload) {
     return payload.auth_key.trim();
   }
   return null;
+}
+
+function getDeepLAuthKey(headers, payload) {
+  const serverKey = getServerDeepLAuthKey();
+  if (serverKey) {
+    // İstemci Authorization / auth_key gönderse bile yoksayılır; hata verilmez.
+    return serverKey;
+  }
+  return getClientDeepLAuthKey(headers, payload);
 }
 
 function deeplEndpoint(authKey) {
@@ -109,12 +130,14 @@ function buildFormBody(payload) {
 }
 
 function infoBody() {
+  const serverKey = getServerDeepLAuthKey();
   return {
     ok: true,
     service: "translate",
-    auth:
-      "Her istekte DeepL anahtarı: Authorization: DeepL-Auth-Key <key>, veya X-DeepL-Auth-Key, veya JSON auth_key (Render'da saklanmaz).",
-    body: "POST JSON: { text, target_lang, source_lang?, ... } — auth_key burada da olabilir, DeepL gövdesine iletilmez.",
+    auth: serverKey
+      ? "DeepL anahtarı Render DEEPL_AUTH_KEY env ile kullanılır. İstemci Authorization / X-DeepL-Auth-Key / auth_key gönderirse yoksayılır (geriye dönük uyum, hata yok)."
+      : "DEEPL_AUTH_KEY env tanımlı değil (yerel mod): Authorization: DeepL-Auth-Key …, X-DeepL-Auth-Key veya JSON auth_key.",
+    body: "POST JSON: { text, target_lang, source_lang?, ... } — auth_key varsa DeepL gövdesine iletilmez; env tanımlıysa istemci anahtarı kullanılmaz.",
     deepl_defaults:
       "İstemci göndermese bile DeepL'e eklenir (JSON'da aynı alan verilirse override): tag_handling=html, preserve_formatting=1, show_billed_characters=1.",
   };
@@ -153,10 +176,10 @@ export async function processTranslateRequest({ method, headers, body, bodyRaw }
   const authKey = getDeepLAuthKey(headers, payload);
   if (!authKey) {
     return {
-      status: 401,
+      status: 503,
       body: {
         error:
-          "DeepL auth gerekli: header Authorization: DeepL-Auth-Key … veya X-DeepL-Auth-Key veya gövdede auth_key",
+          "DeepL anahtarı yapılandırılmamış. Render dashboard → Environment → DEEPL_AUTH_KEY ekleyin (yerel: .env veya export).",
       },
     };
   }
