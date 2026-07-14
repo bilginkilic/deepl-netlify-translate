@@ -236,7 +236,18 @@ HTTP **200**. Gövde DeepL’in döndürdüğü JSON ile uyumludur; tipik olarak
 | **401** | DeepL anahtarı eksik veya hiçbir desteklenen yöntemle gelmedi |
 | **400** | JSON hatalı veya `text` / `target_lang` eksik |
 | **405** | `GET`/`POST` dışı metod |
+| **504** | DeepL yanıtı proxy timeout süresini aştı; payload’ı küçültün veya istemci timeout değerini artırın |
 | **4xx/5xx** | DeepL veya ağ kaynaklı; gövdede genelde `message` veya DeepL’in hata nesnesi |
+
+### Timeout notu
+
+`Operation timed out after 30001 milliseconds with ... bytes received` gibi bir hata genellikle PHP/cURL tarafındaki `CURLOPT_TIMEOUT` değerinin **30 saniye** olduğunu gösterir. Büyük `text[]` isteklerinde veya uzun HTML içeriklerinde DeepL yanıtı bu süreyi aşabilir.
+
+Öneriler:
+
+- PHP/cURL tarafında timeout’u en az **60–120 saniye** tutun.
+- Büyük içerikleri 50 öğeye kadar toplu gönderebilirsiniz; fakat her öğe çok uzunsa daha küçük parçalara bölün.
+- Proxy artık DeepL tarafı çok uzarsa varsayılan **25 saniyede** JSON `504` döndürür. Netlify ortam değişkeni `DEEPL_TIMEOUT_MS` ile bu süre değiştirilebilir.
 
 ---
 
