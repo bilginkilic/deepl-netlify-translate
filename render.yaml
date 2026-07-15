@@ -13,4 +13,8 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Turkuaz chat relay'i (/api/anthropic/v1/messages) korumak için zorunlu:
+      # October tarafındaki "Relay Token" ayarıyla aynı değeri girin.
+      - key: RELAY_TOKEN
+        sync: false
       # İsteğe bağlı: CORS_ORIGIN, DEEPL_API_URL, SEO_MODEL, SEO_MAX_TOKENS

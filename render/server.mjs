@@ -1,6 +1,7 @@
 import express from "express";
 import { corsHeaders, processTranslateRequest } from "./translate-core.mjs";
 import { processSeoRequest } from "./seo-core.mjs";
+import { processAnthropicRelayRequest } from "./anthropic-relay-core.mjs";
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -59,6 +60,7 @@ app.get("/health", (_req, res) => {
     service: "deepl-translate-proxy",
     translate: "/api/translate",
     seo_optimize: "/api/seo-optimize",
+    anthropic_relay: "/api/anthropic/v1/messages",
   });
 });
 
@@ -68,6 +70,7 @@ app.get("/", (_req, res) => {
     service: "deepl-translate-proxy",
     translate: "/api/translate",
     seo_optimize: "/api/seo-optimize",
+    anthropic_relay: "/api/anthropic/v1/messages",
   });
 });
 
@@ -78,6 +81,26 @@ app.options("/api/translate", handleTranslate);
 app.get("/api/seo-optimize", handleSeo);
 app.post("/api/seo-optimize", handleSeo);
 app.options("/api/seo-optimize", handleSeo);
+
+async function handleAnthropicRelay(req, res) {
+  try {
+    const result = await processAnthropicRelayRequest({
+      method: req.method,
+      headers: req.headers,
+      body: req.method === "POST" ? req.body : undefined,
+    });
+    sendApiResult(res, result);
+  } catch (e) {
+    console.error(e);
+    res
+      .status(500)
+      .set({ "Content-Type": "application/json", ...corsHeaders() })
+      .json({ error: "Internal server error" });
+  }
+}
+
+app.post("/api/anthropic/v1/messages", handleAnthropicRelay);
+app.options("/api/anthropic/v1/messages", handleAnthropicRelay);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
