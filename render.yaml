@@ -17,4 +17,9 @@ services:
       # October tarafındaki "Relay Token" ayarıyla aynı değeri girin.
       - key: RELAY_TOKEN
         sync: false
+      # Chat'e özel Anthropic anahtarı (SEO'nun ANTHROPIC_API_KEY'ine dokunmadan).
+      # Tanımlıysa October tarafında anahtar girmek gerekmez; anahtar RU'daki
+      # sunucuda hiç durmaz.
+      - key: CHAT_ANTHROPIC_API_KEY
+        sync: false
       # İsteğe bağlı: CORS_ORIGIN, DEEPL_API_URL, SEO_MODEL, SEO_MAX_TOKENS

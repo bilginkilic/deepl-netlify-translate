@@ -29,11 +29,15 @@ export async function processAnthropicRelayRequest({ method, headers = {}, body 
     }
   }
 
+  // Key priority: caller's own key, then the chat-dedicated env key, then
+  // the shared key the SEO endpoint already uses. CHAT_ANTHROPIC_API_KEY
+  // lets the chat run on its own key/limits without touching the SEO setup.
   const apiKey =
     String(headers["x-api-key"] ?? "").trim() ||
+    (process.env.CHAT_ANTHROPIC_API_KEY ?? "").trim() ||
     (process.env.ANTHROPIC_API_KEY ?? "").trim();
   if (apiKey === "") {
-    return { status: 401, body: { error: "No API key: send x-api-key or set ANTHROPIC_API_KEY" } };
+    return { status: 401, body: { error: "No API key: send x-api-key or set CHAT_ANTHROPIC_API_KEY" } };
   }
 
   if (!body || typeof body !== "object") {
